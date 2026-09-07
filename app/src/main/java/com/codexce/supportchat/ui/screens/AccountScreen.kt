@@ -36,7 +36,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.Dp
+import com.codexce.supportchat.data.AccountDeletion
+import com.codexce.supportchat.data.DeletionState
 import com.codexce.supportchat.data.OwnerPhoto
+import com.google.firebase.auth.FirebaseAuth
 import com.codexce.supportchat.ui.components.BackButton
 import com.codexce.supportchat.ui.components.GroupGap
 import com.codexce.supportchat.ui.components.OwnerAvatar
@@ -349,6 +352,34 @@ private fun SignedInSection(
     var uploading by remember { mutableStateOf(false) }
     var photoError by remember { mutableStateOf<String?>(null) }
     var confirmDelete by remember { mutableStateOf(false) }
+
+    /*
+     * Deletion state, read from the tenant document rather than kept on the device.
+     *
+     * It has to be the server's copy: a request made on a phone that was then reinstalled
+     * must still be cancellable, and the console can start or stop one too.
+     */
+    var deletion by remember { mutableStateOf<DeletionState>(DeletionState.None) }
+    var deletionBusy by remember { mutableStateOf(false) }
+    var deletionError by remember { mutableStateOf<String?>(null) }
+    var typedConfirmation by remember { mutableStateOf("") }
+
+    LaunchedEffect(tenant?.tenantId) {
+        deletion = AccountDeletion.state(tenant?.tenantId)
+
+        /*
+         * The grace period expiring is noticed here, at launch, because on the Spark plan
+         * there is no scheduled job to notice it anywhere else. The owner's own app is the
+         * only party that both runs reliably and is authorised to clear the workspace, which
+         * is the same reasoning Retention.kt already documents for expired chats.
+         */
+        if (deletion is DeletionState.Due) {
+            deletionBusy = true
+            deletionError = AccountDeletion.purgeLocalHalf(tenant?.tenantId)
+            deletionBusy = false
+            deletion = DeletionState.Purged
+        }
+    }
 
     // Starts mirroring the stored photo. Idempotent per tenant, so re-running this on every
     // recomposition of the id cannot stack listeners.
@@ -670,37 +701,162 @@ private fun SignedInSection(
                         .background(MaterialTheme.colorScheme.surfaceContainerLow),
                 ) {
                     PlainRow(
-                        title = "Delete account and workspace",
+                        title = when (deletion) {
+                            is DeletionState.Pending -> "Deletion scheduled"
+                            else -> "Delete account and workspace"
+                        },
                         danger = true,
-                        onClick = debounced { confirmDelete = true },
+                        onClick = debounced {
+                            typedConfirmation = ""
+                            deletionError = null
+                            confirmDelete = true
+                        },
                     )
                 }
             }
 
-            if (confirmDelete) {
+            /*
+             * Deletion, done here instead of refusing and asking for an email.
+             *
+             * Three dialogs rather than one, because the three situations need different words
+             * and different buttons: nothing requested, a request that can still be taken back,
+             * and an account that no longer exists.
+             */
+            val pending = deletion as? DeletionState.Pending
+
+            if (confirmDelete && deletion is DeletionState.Purged) {
                 androidx.compose.material3.AlertDialog(
-                    onDismissRequest = { confirmDelete = false },
-                    title = { Text("Delete account and workspace") },
+                    onDismissRequest = { },
+                    title = { Text("Account deleted") },
                     text = {
                         Text(
-                            "This removes the workspace, its linked websites, its leads and its " +
-                                "API keys. It cannot be undone.\n\nIt also cannot be done from " +
-                                "the app. Unwinding a tenant safely is a server job, and a " +
-                                "button that half-finishes it would leave a live widget " +
-                                "pointing at a workspace that no longer exists. Email " +
-                                "info@keykraftt.com from this address and it is actioned for you.",
+                            deletionError
+                                ?: "Your workspace, its websites, leads and chats have been " +
+                                    "deleted, and your login has been removed. Nothing here can " +
+                                    "be recovered.\n\nYou can start again with a new account " +
+                                    "whenever you like.",
                         )
                     },
                     confirmButton = {
                         androidx.compose.material3.TextButton(
+                            onClick = {
+                                // Signing out is what routes back to the sign-in screen: the auth
+                                // state listener in AuthViewModel drives navigation, so there is
+                                // no navigate() call to keep in step with it here.
+                                confirmDelete = false
+                                FirebaseAuth.getInstance().signOut()
+                            },
+                        ) { Text("Create a new account") }
+                    },
+                )
+            } else if (confirmDelete && pending != null) {
+                androidx.compose.material3.AlertDialog(
+                    onDismissRequest = { if (!deletionBusy) confirmDelete = false },
+                    title = { Text("Deletion scheduled") },
+                    text = {
+                        Column {
+                            Text(
+                                "Your account and workspace are due to be deleted after " +
+                                    "${'$'}{deletionDueLabel(pending.dueAt)}. Until then everything " +
+                                    "still works and you can change your mind.",
+                            )
+                            deletionError?.let {
+                                Spacer(Modifier.size(10.dp))
+                                Text(it, color = MaterialTheme.colorScheme.error)
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        androidx.compose.material3.TextButton(
+                            enabled = !deletionBusy,
+                            onClick = {
+                                deletionBusy = true
+                                scope.launch {
+                                    deletionError = AccountDeletion.cancel(tenant?.tenantId)
+                                    if (deletionError == null) {
+                                        deletion = DeletionState.None
+                                        confirmDelete = false
+                                    }
+                                    deletionBusy = false
+                                }
+                            },
+                        ) { Text("Cancel deletion") }
+                    },
+                    dismissButton = {
+                        androidx.compose.material3.TextButton(
+                            enabled = !deletionBusy,
                             onClick = { confirmDelete = false },
-                        ) { Text("Close") }
+                        ) { Text("Leave it scheduled") }
+                    },
+                )
+            } else if (confirmDelete) {
+                androidx.compose.material3.AlertDialog(
+                    onDismissRequest = { if (!deletionBusy) confirmDelete = false },
+                    title = { Text("Delete account and workspace") },
+                    text = {
+                        Column {
+                            Text(
+                                "This deletes your workspace, its linked websites, its leads, " +
+                                    "its API keys, every chat in it, and your login. Any widget " +
+                                    "still installed on your site will stop working.",
+                            )
+                            Spacer(Modifier.size(10.dp))
+                            Text(
+                                "You have 7 days to change your mind. Nothing is removed before " +
+                                    "then, and cancelling in that window puts everything back.",
+                            )
+                            Spacer(Modifier.size(14.dp))
+                            // A typed word rather than a second button. It is the cheapest way to
+                            // make sure this is not a mis-tap on a row next to "Sign out".
+                            OutlinedTextField(
+                                value = typedConfirmation,
+                                onValueChange = { typedConfirmation = it },
+                                singleLine = true,
+                                label = { Text("Type DELETE to confirm") },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            deletionError?.let {
+                                Spacer(Modifier.size(10.dp))
+                                Text(it, color = MaterialTheme.colorScheme.error)
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        androidx.compose.material3.TextButton(
+                            enabled = !deletionBusy && typedConfirmation.trim().equals("DELETE", ignoreCase = false),
+                            onClick = {
+                                deletionBusy = true
+                                scope.launch {
+                                    deletionError = AccountDeletion.request(tenant?.tenantId)
+                                    if (deletionError == null) {
+                                        deletion = AccountDeletion.state(tenant?.tenantId)
+                                    }
+                                    deletionBusy = false
+                                }
+                            },
+                        ) { Text(if (deletionBusy) "Working" else "Schedule deletion") }
+                    },
+                    dismissButton = {
+                        androidx.compose.material3.TextButton(
+                            enabled = !deletionBusy,
+                            onClick = { confirmDelete = false },
+                        ) { Text("Keep my account") }
                     },
                 )
             }
         }
     }
 }
+
+/**
+ * The deletion deadline as a plain date and time.
+ *
+ * Deliberately absolute rather than "in 6 days": a relative label read on the last day of
+ * the window is ambiguous about whether there is still time to cancel.
+ */
+private fun deletionDueLabel(dueAt: Long): String =
+    java.text.SimpleDateFormat("d MMM yyyy, HH:mm", java.util.Locale.getDefault())
+        .format(java.util.Date(dueAt))
 
 /** Row separator inside an icon-less card. Indented to the text, not to a missing tile. */
 @Composable

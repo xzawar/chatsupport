@@ -102,6 +102,33 @@ class AppPreferences private constructor(context: Context) {
     /** Read synchronously by the startup check, which runs before any collector exists. */
     val updateOnStartupAtStartup: Boolean get() = _updateOnStartup.value
 
+    // ---------------------------------------------------------- developer mode
+    /*
+     * A hidden developer mode, unlocked by tapping the version footer in Settings seven times
+     * and persisted so it stays on until explicitly turned off. It gates local-testing
+     * conveniences that would be wrong to expose on a normal install: registering localhost,
+     * .local and LAN sites, and pointing the app at a Firebase emulator suite.
+     */
+    private val _devMode = MutableStateFlow(prefs.getBoolean(KEY_DEV_MODE, false))
+    val devMode: StateFlow<Boolean> = _devMode.asStateFlow()
+
+    /** Readable without collecting, for gates that run before any composition. */
+    val devModeEnabled: Boolean get() = _devMode.value
+
+    private val _emulatorEnabled = MutableStateFlow(prefs.getBoolean(KEY_EMULATOR_ENABLED, false))
+    val emulatorEnabled: StateFlow<Boolean> = _emulatorEnabled.asStateFlow()
+
+    /** Read synchronously at startup, before Firebase is first touched. */
+    val emulatorEnabledAtStartup: Boolean get() = _emulatorEnabled.value
+
+    private val _emulatorHost = MutableStateFlow(
+        prefs.getString(KEY_EMULATOR_HOST, null)?.takeIf { it.isNotBlank() } ?: DEFAULT_EMULATOR_HOST,
+    )
+    val emulatorHost: StateFlow<String> = _emulatorHost.asStateFlow()
+
+    /** Read synchronously at startup, before Firebase is first touched. */
+    val emulatorHostAtStartup: String get() = _emulatorHost.value
+
     /**
      * The highest versionCode the user has dismissed with "Later".
      *
@@ -144,6 +171,29 @@ class AppPreferences private constructor(context: Context) {
         _updateOnStartup.value = enabled
     }
 
+    fun setDevMode(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_DEV_MODE, enabled).apply()
+        _devMode.value = enabled
+        // Turning developer mode off must not leave the app quietly talking to a laptop. The
+        // emulator override is a developer-only capability, so it dies with the mode that
+        // exposed it; the saved host is kept so re-enabling does not lose it.
+        if (!enabled && _emulatorEnabled.value) {
+            prefs.edit().putBoolean(KEY_EMULATOR_ENABLED, false).apply()
+            _emulatorEnabled.value = false
+        }
+    }
+
+    fun setEmulatorEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_EMULATOR_ENABLED, enabled).apply()
+        _emulatorEnabled.value = enabled
+    }
+
+    fun setEmulatorHost(host: String) {
+        val cleaned = host.trim()
+        prefs.edit().putString(KEY_EMULATOR_HOST, cleaned).apply()
+        _emulatorHost.value = cleaned.ifBlank { DEFAULT_EMULATOR_HOST }
+    }
+
     /**
      * Records a dismissed version.
      *
@@ -181,6 +231,12 @@ class AppPreferences private constructor(context: Context) {
         private const val KEY_KEEP_CONNECTED = "keep_connected"
         private const val KEY_UPDATE_ON_STARTUP = "update_on_startup"
         private const val KEY_SKIPPED_UPDATE = "skipped_update_version"
+        private const val KEY_DEV_MODE = "dev_mode"
+        private const val KEY_EMULATOR_ENABLED = "dev_emulator_enabled"
+        private const val KEY_EMULATOR_HOST = "dev_emulator_host"
+
+        /** Android emulator's alias for the host machine's localhost. */
+        private const val DEFAULT_EMULATOR_HOST = "10.0.2.2"
 
         @Volatile
         private var instance: AppPreferences? = null

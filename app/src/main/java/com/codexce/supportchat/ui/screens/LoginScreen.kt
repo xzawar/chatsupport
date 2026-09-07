@@ -1,6 +1,10 @@
 package com.codexce.supportchat.ui.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -32,18 +36,20 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import com.codexce.supportchat.ui.components.debounced
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -55,21 +61,50 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.codexce.supportchat.R
 import com.codexce.supportchat.ui.components.ErrorBanner
+import com.codexce.supportchat.ui.components.debounced
 import com.codexce.supportchat.viewmodel.AuthViewModel
 
 /*
- * Login gate, laid out to match the supplied reference: an illustration filling the top of the
- * screen, then a cream panel with the heading and two pill buttons.
+ * Login gate: an illustration filling the top of the screen, then a cream panel with the heading
+ * and two pill buttons.
  *
  * The colours below are deliberately hard-coded rather than pulled from MaterialTheme. This is a
  * branded first-run screen and the reference is a single fixed colour scheme, so it looks the same
  * whether the device is in light or dark mode. Every other screen still follows the theme.
  *
+ *
+ * The fade between the two sections
+ * ---------------------------------
+ * There were two different seams on this screen and they needed different fixes.
+ *
+ * 1. The hard horizontal line where the illustration's backdrop met the cream panel. Two flat
+ *    near-white colours butting up against each other read as a rendering mistake. Cross-fading the
+ *    panel into the image would not fix it, because the boundary is inside the image itself: the
+ *    artwork runs all the way to its own bottom edge. So the seam is a 96dp gradient from
+ *    transparent to the panel colour, painted on top of the illustration. That dissolves the bottom
+ *    of the artwork into the panel rather than cutting it off, and because both sides now share a
+ *    colour at the join there is no line left to see.
+ *
+ * 2. The arrival of the screen. Both sections used to appear at once, fully formed. They now fade
+ *    in with the panel trailing the illustration by 130ms, which reads as the page settling instead
+ *    of snapping into place. The stagger is deliberately small - long enough to feel sequenced,
+ *    short enough that someone who just wants to sign in is not made to watch an animation.
+ *
+ * Two smaller motion changes come along with those, both for the same reason - every state change
+ * on this screen used to be instant, and instant state changes on a first-run screen read as jank
+ * rather than as speed:
+ *
+ *  - Opening the email fields shrinks the illustration instead of growing a scrollbar (see
+ *    heroHeight below).
+ *  - The email button's label and the sign-in button's spinner cross-fade rather than snapping.
+ *
+ *
  * Two honest notes about how close this gets to the reference:
  *
  *  - login_hero.png is cropped out of the reference JPG itself, so it is only 552px wide and will
  *    be scaled up roughly 2x on a 1080p phone. It will look slightly soft. A vector or a
- *    full-resolution export of that illustration is the only way to fix that.
+ *    full-resolution export of that illustration is the only real fix. The seam gradient does hide
+ *    the softest part of it, which is the bottom edge, so this is less obvious than it was.
  *  - The wordmark uses the system sans-serif at its heaviest weight. The typeface in the reference
  *    could not be identified or downloaded here. Drop a .ttf into res/font and swap WordmarkFont
  *    below for an exact match; Poppins ExtraBold and Nunito Black are close free stand-ins.
@@ -82,6 +117,19 @@ private val MutedInk = Color(0xFF6E6A65)
 private val HairlineBorder = Color(0x1A000000)
 private val FieldBorder = Color(0x33000000)
 
+/*
+ * Depth of the dissolve between the illustration and the panel.
+ *
+ * 96dp is roughly 12 percent of a typical phone's height. Much shorter than about 64dp and the
+ * gradient itself becomes a visible band, which just replaces one hard edge with a softer one.
+ */
+private val SeamHeight = 96.dp
+
+private const val IntroFadeMs = 520
+private const val SheetDelayMs = 130
+private const val HeroCollapseMs = 420
+private const val LabelFadeMs = 180
+
 // Swap this for FontFamily(Font(R.font.your_font)) once the real typeface is available.
 private val WordmarkFont = FontFamily.SansSerif
 
@@ -89,14 +137,63 @@ private val WordmarkFont = FontFamily.SansSerif
 fun LoginScreen(authViewModel: AuthViewModel) {
     val auth by authViewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val scrollState = rememberScrollState()
 
     var emailExpanded by rememberSaveable { mutableStateOf(false) }
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
 
-    // The reference gives the illustration a little under two thirds of the screen. Deriving it
-    // from the screen height keeps that ratio on tall and short devices alike.
-    val heroHeight = (LocalConfiguration.current.screenHeightDp * 0.58f).dp
+    /*
+     * rememberSaveable rather than remember, which matters more than it looks.
+     *
+     * With plain remember this flag resets on every configuration change, so rotating the device -
+     * or anything else that recreates the activity - would replay the whole intro underneath the
+     * user's fingers. Saved, the animation plays once, when the screen is genuinely new.
+     */
+    var entered by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(Unit) { entered = true }
+
+    val heroAlpha by animateFloatAsState(
+        targetValue = if (entered) 1f else 0f,
+        animationSpec = tween(durationMillis = IntroFadeMs),
+        label = "heroAlpha",
+    )
+    val sheetAlpha by animateFloatAsState(
+        targetValue = if (entered) 1f else 0f,
+        animationSpec = tween(durationMillis = IntroFadeMs, delayMillis = SheetDelayMs),
+        label = "sheetAlpha",
+    )
+
+    /*
+     * The reference gives the illustration a little under two thirds of the screen. Deriving that
+     * from the screen height keeps the ratio on tall and short devices alike.
+     *
+     * When the email fields open, the illustration gives up a bit under 40 percent of its height
+     * rather than the page growing a scrollbar. Two fields plus a button need roughly 200dp, and
+     * taking that from the artwork is what keeps the sign-in controls on screen on a short device.
+     * Animating it means the illustration appears to make room instead of jumping.
+     */
+    val baseHeroHeight = (LocalConfiguration.current.screenHeightDp * 0.58f).dp
+    val heroHeight by animateDpAsState(
+        targetValue = if (emailExpanded) baseHeroHeight * 0.62f else baseHeroHeight,
+        animationSpec = tween(durationMillis = HeroCollapseMs),
+        label = "heroHeight",
+    )
+
+    /*
+     * Collapsing the hero is usually enough on its own, but on a short device it is not, so the
+     * page also scrolls the new fields into view.
+     *
+     * Keyed on maxValue as well as the flag on purpose: at the moment the flag flips, the fields
+     * have not been measured yet and maxValue is still the old value, so scrolling to it would
+     * land short. maxValue changing after layout re-runs this effect with the real number. The
+     * emailExpanded guard means collapsing - which also changes maxValue - does not scroll.
+     */
+    LaunchedEffect(emailExpanded, scrollState.maxValue) {
+        if (emailExpanded && scrollState.maxValue > 0) {
+            scrollState.animateScrollTo(scrollState.maxValue)
+        }
+    }
 
     Box(
         Modifier
@@ -107,13 +204,14 @@ fun LoginScreen(authViewModel: AuthViewModel) {
             Modifier
                 .fillMaxSize()
                 .imePadding()
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(scrollState),
         ) {
             // HERO -------------------------------------------------------------------
             Box(
                 Modifier
                     .fillMaxWidth()
                     .height(heroHeight)
+                    .alpha(heroAlpha)
                     .background(HeroBackdrop),
             ) {
                 Image(
@@ -124,6 +222,24 @@ fun LoginScreen(authViewModel: AuthViewModel) {
                         .fillMaxWidth()
                         .align(Alignment.BottomCenter),
                 )
+
+                /*
+                 * The seam. Drawn after the image so it sits on top of it, and anchored to the
+                 * bottom of the hero so it always meets the panel regardless of how tall the hero
+                 * currently is - including mid-collapse.
+                 */
+                Box(
+                    Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .height(SeamHeight)
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(Color.Transparent, SheetCream),
+                            ),
+                        ),
+                )
+
                 Text(
                     text = "Support Chat",
                     fontFamily = WordmarkFont,
@@ -142,6 +258,7 @@ fun LoginScreen(authViewModel: AuthViewModel) {
             Column(
                 Modifier
                     .fillMaxWidth()
+                    .alpha(sheetAlpha)
                     .background(SheetCream)
                     .navigationBarsPadding()
                     .padding(start = 28.dp, top = 30.dp, end = 28.dp, bottom = 32.dp),
@@ -154,9 +271,29 @@ fun LoginScreen(authViewModel: AuthViewModel) {
                     textAlign = TextAlign.Center,
                 )
 
-                auth.error?.let { message ->
-                    Spacer(Modifier.height(16.dp))
-                    ErrorBanner(message = message, onDismiss = authViewModel::clearError)
+                /*
+                 * The banner animates in and out rather than appearing and vanishing, because a
+                 * block of text materialising instantly is the thing that makes an error feel like
+                 * a crash.
+                 *
+                 * detail is what actually addresses the original complaint: the raw failure text no
+                 * longer goes to everyone, it goes behind the dev-mode toggle inside ErrorBanner.
+                 * This screen is where the network error was seen, so this is the call site that
+                 * had to start passing it.
+                 */
+                AnimatedVisibility(
+                    visible = auth.error != null,
+                    enter = fadeIn() + expandVertically(),
+                    exit = fadeOut() + shrinkVertically(),
+                ) {
+                    Column(Modifier.fillMaxWidth()) {
+                        Spacer(Modifier.height(16.dp))
+                        ErrorBanner(
+                            message = auth.error.orEmpty(),
+                            onDismiss = authViewModel::clearError,
+                            detail = auth.errorDetail,
+                        )
+                    }
                 }
 
                 Spacer(Modifier.height(22.dp))
@@ -220,11 +357,18 @@ fun LoginScreen(authViewModel: AuthViewModel) {
                         disabledContentColor = Color.White,
                     ),
                 ) {
-                    Text(
-                        text = if (emailExpanded) "Use another method" else "Sign in with Email",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold,
-                    )
+                    // Two different words in the same slot, so they cross-fade rather than swap.
+                    Crossfade(
+                        targetState = emailExpanded,
+                        animationSpec = tween(durationMillis = LabelFadeMs),
+                        label = "emailMethodLabel",
+                    ) { expanded ->
+                        Text(
+                            text = if (expanded) "Use another method" else "Sign in with Email",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                    }
                 }
 
                 AnimatedVisibility(
@@ -281,18 +425,29 @@ fun LoginScreen(authViewModel: AuthViewModel) {
                                 disabledContentColor = Color.White,
                             ),
                         ) {
-                            if (auth.submitting) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(18.dp),
-                                    strokeWidth = 2.dp,
-                                    color = Color.White,
-                                )
-                            } else {
-                                Text(
-                                    text = "Sign in",
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                )
+                            /*
+                             * The spinner replacing the label was the most abrupt transition left
+                             * on the screen, and it fires on the one tap the user actually cares
+                             * about. Cross-faded, the button reads as busy rather than as broken.
+                             */
+                            Crossfade(
+                                targetState = auth.submitting,
+                                animationSpec = tween(durationMillis = LabelFadeMs),
+                                label = "signInButtonState",
+                            ) { busy ->
+                                if (busy) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(18.dp),
+                                        strokeWidth = 2.dp,
+                                        color = Color.White,
+                                    )
+                                } else {
+                                    Text(
+                                        text = "Sign in",
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                    )
+                                }
                             }
                         }
                     }

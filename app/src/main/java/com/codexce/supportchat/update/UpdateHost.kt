@@ -34,6 +34,15 @@ import kotlinx.coroutines.launch
  * Nothing here runs before the app is usable. The check is delayed past the first frames and the
  * whole thing renders nothing at all in the common case, so the cost on a cold start where no
  * update exists is one background GET and no composition.
+ *
+ * Two delivery routes, chosen by the manifest, not by the app:
+ *
+ *  - page mode opens keykraftt.com/app in a browser and stops there. Nothing is downloaded in
+ *    process and no install permission is involved, because the browser already has one.
+ *  - direct mode downloads the APK and hands it to the package installer, as before.
+ *
+ * The choice lives in the manifest so it can change without shipping a build — which matters,
+ * because the URL the app checks is compiled in and cannot.
  */
 @Composable
 fun UpdateHost(preferences: AppPreferences) {
@@ -73,6 +82,7 @@ fun UpdateHost(preferences: AppPreferences) {
     }
 
     val pending = manifest ?: return
+    val viaPage = pending.opensDownloadPage
 
     val dismiss: () -> Unit = {
         // Remembering the declined version is what stops Later meaning "ask me again in a minute".
@@ -95,6 +105,23 @@ fun UpdateHost(preferences: AppPreferences) {
                     Spacer(Modifier.height(8.dp))
                     Text(text = notes, style = MaterialTheme.typography.bodySmall)
                 }
+
+                /*
+                 * Page mode says where the button goes before it goes there.
+                 *
+                 * Leaving the app to a browser is a jarring thing to have happen unannounced, and
+                 * someone who is not expecting it reads it as the app failing rather than as the
+                 * update continuing.
+                 */
+                if (viaPage) {
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        text = "Update opens keykraftt.com in your browser, where you can " +
+                            "download and install the new version.",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+
                 if (needsPermission) {
                     Spacer(Modifier.height(12.dp))
                     Text(
@@ -130,6 +157,28 @@ fun UpdateHost(preferences: AppPreferences) {
                 TextButton(
                     onClick = {
                         failure = null
+
+                        if (viaPage) {
+                            /*
+                             * The prompt is closed WITHOUT recording a skip, and for the same
+                             * reason as a completed download: handing off to the browser is not
+                             * evidence that anything was installed. The user may never tap
+                             * download. Leaving it unrecorded means the next launch asks again,
+                             * and the version check silences it by itself once the new build is
+                             * actually running.
+                             */
+                            val opened = UpdateInstaller.openDownloadPage(
+                                context,
+                                pending.downloadPageUrl!!,
+                            )
+                            if (opened) {
+                                manifest = null
+                            } else {
+                                failure = "Could not open your browser. " +
+                                    "Visit keykraftt.com/app to update."
+                            }
+                            return@TextButton
+                        }
 
                         // Asked for before the download, not after it: a 25MB transfer that ends
                         // at a permission wall the user then declines is 25MB wasted.
@@ -170,7 +219,13 @@ fun UpdateHost(preferences: AppPreferences) {
                         }
                     },
                 ) {
-                    Text(if (failure == null) "Update" else "Try again")
+                    Text(
+                        when {
+                            failure != null -> "Try again"
+                            viaPage -> "Open download page"
+                            else -> "Update"
+                        },
+                    )
                 }
             }
         },

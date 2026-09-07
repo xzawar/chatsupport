@@ -52,6 +52,7 @@ import com.codexce.supportchat.notifications.BatteryOptimization
 import com.codexce.supportchat.notifications.MessageWatchService
 import com.codexce.supportchat.data.TenantSession
 import com.codexce.supportchat.ui.components.AppIcons
+import com.codexce.supportchat.ui.components.AppToast
 import com.codexce.supportchat.ui.components.BackButton
 import com.codexce.supportchat.ui.components.safeClickable
 import com.codexce.supportchat.ui.components.debounced
@@ -102,6 +103,7 @@ fun SettingsScreen(
     onOpenWallpaper: () -> Unit,
     onOpenLinkWebsite: () -> Unit,
     onOpenLinkComputer: () -> Unit,
+    onOpenDeveloper: () -> Unit = {},
     onOpenHelp: () -> Unit,
     onComingSoon: (String) -> Unit,
     /** Signs the account out. The only destructive action on this screen. */
@@ -145,6 +147,8 @@ fun SettingsScreen(
     val batteryExempt = remember(resumeCount) { BatteryOptimization.isExempt(context) }
     val keepConnected by preferences.keepConnected.collectAsStateWithLifecycle()
     val updateOnStartup by preferences.updateOnStartup.collectAsStateWithLifecycle()
+    val devMode by preferences.devMode.collectAsStateWithLifecycle()
+    var versionTaps by remember { mutableStateOf(0) }
 
     val scroll = rememberScrollState()
     val collapsePx = with(LocalDensity.current) { HeaderCollapseDistance.toPx() }
@@ -435,6 +439,18 @@ fun SettingsScreen(
              * Deliberately not inside a SettingsGroup card. It is not a setting, and putting it
              * in the last card would make it look like one more row of Other.
              */
+            if (devMode) {
+                GroupGap()
+                SettingsGroup {
+                    SettingsRow(
+                        icon = AppIcons.RocketSolid,
+                        title = "Developer",
+                        tint = TintPlum,
+                        onClick = debounced(onOpenDeveloper),
+                    )
+                }
+            }
+
             Spacer(Modifier.height(24.dp))
             Button(
                 onClick = debounced(onSignOut),
@@ -456,12 +472,32 @@ fun SettingsScreen(
             }
 
             Text(
-                text = "Support Chat 7.0.2",
+                text = "Support Chat 7.0.3",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
                 modifier = Modifier
                     .fillMaxWidth()
+                    // Tap seven times to unlock the hidden developer mode. It stays silent
+                    // until the last few taps so it is not stumbled onto by accident.
+                    .clickable {
+                        if (devMode) {
+                            AppToast.show("Developer mode is already on")
+                        } else {
+                            versionTaps++
+                            val remaining = 7 - versionTaps
+                            when {
+                                remaining <= 0 -> {
+                                    versionTaps = 0
+                                    preferences.setDevMode(true)
+                                    AppToast.show("Developer mode unlocked")
+                                }
+                                remaining == 1 -> AppToast.show("1 tap away from developer mode")
+                                remaining in 2..3 ->
+                                    AppToast.show("$remaining taps away from developer mode")
+                            }
+                        }
+                    }
                     .padding(20.dp)
                     // The reference centres its version footer. Left-aligned it read as a stray
                     // label; centred it reads as the end of the document.

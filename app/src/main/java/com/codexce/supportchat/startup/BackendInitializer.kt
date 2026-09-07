@@ -32,14 +32,15 @@ import com.google.firebase.database.FirebaseDatabase
 class BackendInitializer : Initializer<Unit> {
 
     override fun create(context: Context) {
-        // Debug builds only, and it has to happen before the first Auth or database access.
-        Emulators.connect()
+        // Build flag or the hidden developer-mode override, and it has to happen before the
+        // first Auth or database access.
+        Emulators.connect(context)
 
         try {
             // Disk persistence is deliberately skipped against the emulator. A wiped emulator
             // plus a surviving on-disk cache shows conversations that no longer exist, which
             // reads as a rules or backend bug and is neither.
-            if (!Emulators.enabled) {
+            if (!Emulators.isEnabled(context)) {
                 FirebaseDatabase.getInstance(DATABASE_URL).setPersistenceEnabled(true)
             }
         } catch (alreadyStarted: Throwable) {

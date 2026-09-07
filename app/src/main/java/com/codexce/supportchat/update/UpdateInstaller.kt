@@ -55,6 +55,34 @@ object UpdateInstaller {
             true
         }
 
+    /**
+     * Opens the release page in whatever browser the device uses.
+     *
+     * This is the whole of page mode. The app deliberately does not download, verify or install
+     * anything here: the browser already holds the install permission, already shows the user the
+     * origin of the file, and already handles the resume-after-a-dropped-connection case that
+     * DownloadManager exists to solve. Duplicating that inside the app would add failure modes
+     * without adding capability.
+     *
+     * ACTION_VIEW with no package set, so the user's default browser wins rather than one this
+     * app picked. NEW_TASK because the launch crosses out of our task and back is expected to
+     * return here, not into a browser stacked on top of the inbox.
+     *
+     * @return false when the device has nothing that can open an https URL, which is rare but
+     *   real on stripped-down builds and kiosk devices. The caller shows the URL as text instead
+     *   of failing silently.
+     */
+    fun openDownloadPage(context: Context, url: String): Boolean = runCatching {
+        // Guarded again here, not just at parse time. This function is reachable from a manifest
+        // field, and a cleartext page is one edit away from being a cleartext download link.
+        require(url.startsWith("https://")) { "download page must be https" }
+        context.startActivity(
+            Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+        )
+        true
+    }.getOrDefault(false)
+
     /** Opens the "install unknown apps" screen for this app. No-op below API 26. */
     fun requestInstallPermission(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return

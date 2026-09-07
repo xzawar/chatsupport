@@ -42,6 +42,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.codexce.supportchat.data.api.ApiException
+import com.codexce.supportchat.data.api.SitePairing
 import com.codexce.supportchat.data.api.SupportApi
 import com.codexce.supportchat.data.api.Website
 import com.codexce.supportchat.data.api.WebsiteSecret
@@ -54,6 +55,7 @@ import com.codexce.supportchat.ui.components.CardListSkeleton
 import com.codexce.supportchat.ui.components.GroupGap
 import com.codexce.supportchat.ui.components.StatusPill
 import com.codexce.supportchat.ui.components.SupportCard
+import com.google.mlkit.vision.codescanner.GmsBarcodeScanning
 import kotlinx.coroutines.launch
 import com.codexce.supportchat.ui.theme.supportButtonColors
 
@@ -70,6 +72,7 @@ import com.codexce.supportchat.ui.theme.supportButtonColors
 fun LinkWebsiteScreen(
     signedInEmail: String?,
     onBack: () -> Unit,
+    devMode: Boolean = false,
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -81,6 +84,10 @@ fun LinkWebsiteScreen(
     // The freshly created site, held in memory only, for as long as this screen lives. Only its
     // short link code is ever put on screen; the raw key inside it is never rendered.
     var revealed by remember { mutableStateOf<WebsiteSecret?>(null) }
+    // The website that asked to be linked, if this registration started from a scan. Held only
+    // until the code has been handed back to it.
+    var pairing by remember { mutableStateOf<SitePairing?>(null) }
+    var pairingNote by remember { mutableStateOf<String?>(null) }
 
     suspend fun reload() {
         runCatching { SupportApi.websites() }
@@ -100,6 +107,70 @@ fun LinkWebsiteScreen(
      * is closed while a live site exists and opens again the moment Remove deactivates it.
      */
     val hasActiveSite = websites?.any { it.active } == true
+
+    /*
+     * Scan-to-link: the other half of the plugin's "Show QR code" button.
+     *
+     * The code carries a session id and nothing else. This reads that session out of Firestore,
+     * fills in the domain the site asked about, and the ordinary Register button below does the
+     * rest. No HTTP client is involved and the phone never contacts the website, which is what
+     * makes a localhost or staging install pairable at all.
+     */
+    fun openScannedSession(raw: String) {
+        val value = raw.trim()
+
+        // The computer flow's codes are sc1:<session>:<secret>. One scanned here would otherwise
+        // fail with something unhelpful about a session that does not exist.
+        if (value.startsWith("sc1:")) {
+            error = "That is a computer pairing code. Use \"Link a computer\" in Settings for it."
+            return
+        }
+
+        if (!value.startsWith("sc2:")) {
+            error = "That is not a website pairing code. In the plugin, press \"Show QR code\"."
+            return
+        }
+
+        // One website per account, checked here so the refusal arrives before the camera work
+        // rather than after a filled-in form.
+        if (hasActiveSite) {
+            error = "Remove your existing site first, then scan this code again."
+            return
+        }
+
+        val session = value.removePrefix("sc2:")
+        working = true
+        error = null
+        pairingNote = null
+        scope.launch {
+            runCatching { SupportApi.sitePairing(session) }
+                .onSuccess { found ->
+                    pairing = found
+                    domain = found.domain
+                    pairingNote = "Ready to link " +
+                        (found.siteName?.takeIf { it.isNotBlank() } ?: found.domain) +
+                        ". Press Register and the code is sent back for you."
+                }
+                .onFailure { failure ->
+                    pairing = null
+                    error = (failure as? ApiException)?.message
+                        ?: failure.localizedMessage
+                        ?: "That code could not be read"
+                }
+            working = false
+        }
+    }
+
+    fun scanSession() {
+        error = null
+        GmsBarcodeScanning.getClient(context).startScan()
+            .addOnSuccessListener { barcode ->
+                val raw = barcode.rawValue
+                if (raw == null) error = "No QR code was detected." else openScannedSession(raw)
+            }
+            .addOnCanceledListener { }
+            .addOnFailureListener { error = it.message ?: "Scanner could not open." }
+    }
 
     LaunchedEffect(Unit) { reload() }
 
@@ -143,6 +214,17 @@ fun LinkWebsiteScreen(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    if (devMode) {
+                        Spacer(Modifier.padding(top = 8.dp))
+                        Text(
+                            text = "Developer mode: local origins are accepted here \u2014 " +
+                                "localhost, .local, LAN IPs like 192.168.1.5, and http:// " +
+                                "addresses. Type the domain (e.g. enco.local) and press " +
+                                "Register; no QR scan needed.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
                     Spacer(Modifier.padding(top = 12.dp))
                     OutlinedTextField(
                         value = domain,
@@ -166,6 +248,34 @@ fun LinkWebsiteScreen(
                                     .onSuccess { created ->
                                         revealed = created
                                         domain = ""
+                                        /*
+                                         * If this came from a scan, hand the code back through the
+                                         * same session. The website is already polling for it and
+                                         * links itself; nothing is typed at either end.
+                                         */
+                                        val session = pairing
+                                        val code = created.linkCode
+                                        if (session != null && code != null) {
+                                            runCatching {
+                                                SupportApi.completeSitePairing(
+                                                    session.sessionId,
+                                                    code,
+                                                    signedInEmail,
+                                                )
+                                            }
+                                                .onSuccess {
+                                                    pairing = null
+                                                    pairingNote = "Sent to " + session.domain +
+                                                        ". That site finishes linking itself in " +
+                                                        "a few seconds."
+                                                }
+                                                .onFailure { failure ->
+                                                    error = (failure as? ApiException)?.message
+                                                        ?: "The site was registered, but the code " +
+                                                            "could not be sent back. Type it in " +
+                                                            "on the website instead."
+                                                }
+                                        }
                                         reload()
                                     }
                                     .onFailure { failure ->
@@ -187,6 +297,20 @@ fun LinkWebsiteScreen(
                         } else {
                             Text("Register")
                         }
+                    }
+                    Spacer(Modifier.padding(top = 8.dp))
+                    OutlinedButton(
+                        onClick = debounced { scanSession() },
+                        enabled = !working && !hasActiveSite,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text("Scan a site QR code") }
+                    pairingNote?.let { note ->
+                        Spacer(Modifier.padding(top = 8.dp))
+                        Text(
+                            text = note,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
                     }
                 }
 

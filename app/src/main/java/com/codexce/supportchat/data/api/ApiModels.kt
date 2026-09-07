@@ -255,6 +255,25 @@ data class Website(
     }
 }
 
+/**
+ * A pairing session a WordPress site opened in Firestore, found by scanning its QR code.
+ *
+ * Nothing in here is secret. The unguessable part is the session id itself, which is exactly why
+ * the rules allow get() on one document and refuse to list the collection - the same shape the
+ * link codes already use.
+ */
+data class SitePairing(
+    val sessionId: String,
+    val domain: String,
+    val siteUrl: String? = null,
+    val siteName: String? = null,
+    val expiresAt: Long = 0L
+) {
+    /** Zero once the session is dead, so the UI never counts down past it. */
+    val millisLeft: Long
+        get() = (expiresAt - System.currentTimeMillis()).coerceAtLeast(0L)
+}
+
 /** POST /v1/websites and POST /v1/websites/{id}/rotate-key. The raw key is shown once. */
 data class WebsiteSecret(
     val id: String,

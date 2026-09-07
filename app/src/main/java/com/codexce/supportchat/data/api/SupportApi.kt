@@ -672,6 +672,110 @@ object SupportApi {
         Unit
     }
 
+    // ---------------------------------------------------------- site pairing
+
+    /**
+     * Read the pairing session a WordPress site opened, given the id off its QR code.
+     *
+     * This is the whole reason the app needs no HTTP client to link a website. The plugin cannot
+     * be reached from a phone in the general case - it may be on localhost, a staging box behind
+     * basic auth, or a different network entirely - but both halves can always reach Firestore,
+     * so the session document is the meeting point.
+     *
+     * The session id is the only credential. The rules allow get() on one sitePairings document
+     * by exact id and refuse list(), exactly as they do for link codes, so holding the QR code is
+     * what authorises this read.
+     */
+    suspend fun sitePairing(sessionId: String): SitePairing = withContext(Dispatchers.IO) {
+        val id = sessionId.trim()
+        if (id.isEmpty()) throw ApiException("missing_field", 400, "That code is empty.")
+
+        val doc = firebase { db.collection("sitePairings").document(id).get().await() }
+
+        if (!doc.exists()) {
+            throw ApiException(
+                "pairing_not_found",
+                404,
+                "That code is not valid any more. Show a fresh one on your website.",
+            )
+        }
+
+        val status = doc.getString("status").orEmpty()
+        val expiresAt = doc.getDate("expiresAt")?.time ?: 0L
+
+        // Anything other than waiting means another phone already answered this session, or the
+        // site cancelled it. Reusing it would silently overwrite that answer.
+        if (status != "waiting") {
+            throw ApiException(
+                "pairing_used",
+                409,
+                "That code has already been used. Show a fresh one on your website.",
+            )
+        }
+
+        if (expiresAt > 0L && expiresAt <= System.currentTimeMillis()) {
+            throw ApiException(
+                "pairing_expired",
+                410,
+                "That code has expired. Show a fresh one on your website.",
+            )
+        }
+
+        SitePairing(
+            sessionId = id,
+            domain = doc.getString("domain").orEmpty(),
+            siteUrl = doc.getString("siteUrl"),
+            siteName = doc.getString("siteName"),
+            expiresAt = expiresAt,
+        )
+    }
+
+    /**
+     * Answer the session, so the website can finish linking itself.
+     *
+     * Only the short link code and the account email go in. The API key never does: the code is
+     * eight characters, single use, and dead in ten minutes, so the most a readable session can
+     * leak is a pointer that the site which opened it has already redeemed. That is the same
+     * bargain the typed-code flow already makes.
+     */
+    suspend fun completeSitePairing(
+        sessionId: String,
+        linkCode: String,
+        ownerEmail: String? = null,
+    ) = withContext(Dispatchers.IO) {
+        val id = sessionId.trim()
+        // The screen shows WBX7-KQ2M; the document id is unhyphenated, and so is what the plugin
+        // normalises to before it looks the code up.
+        val code = linkCode.filterNot { it.isWhitespace() || it == '-' }.uppercase()
+
+        if (id.isEmpty() || code.isEmpty()) {
+            throw ApiException("missing_field", 400, "There is nothing to send back to that website.")
+        }
+
+        val email = ownerEmail?.trim().orEmpty().ifEmpty { auth.currentUser?.email.orEmpty() }
+
+        if (email.isEmpty()) {
+            throw ApiException(
+                "missing_field",
+                400,
+                "This account has no email address, so the website cannot verify the code.",
+            )
+        }
+
+        firebase {
+            db.collection("sitePairings").document(id).set(
+                mapOf(
+                    "status" to "ready",
+                    "linkCode" to code,
+                    "ownerEmail" to email,
+                    "answeredAt" to Date(),
+                ),
+                SetOptions.merge(),
+            ).await()
+        }
+        Unit
+    }
+
     // ------------------------------------------------------------------ chat
 
     /**

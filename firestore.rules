@@ -70,6 +70,19 @@ service cloud.firestore {
         // owner who already has a tenant cannot create a second one.
         && !exists(/databases/$(database)/documents/owners/$(request.auth.uid));
 
+      /*
+       * Account deletion.
+       *
+       * deletionRequestedAt (epoch millis, 0 or absent meaning "not requested") and
+       * deletionLocalPurgeAt are written by the owner through this same update rule. No new
+       * clause is needed: the rule constrains the fields it names and permits others, and
+       * every field it does name is carried through unchanged by a merge write.
+       *
+       * `allow delete: if false` below stays as it is on purpose. A client may empty its
+       * workspace but may not remove the tenant document, so a deletion always leaves a
+       * flagged stub for the console's Admin SDK sweep to finish. That is also what makes
+       * the 7 day grace enforceable without Cloud Scheduler, which the Spark plan lacks.
+       */
       allow update: if isOwner(tenantId)
         // Identity and ownership are immutable once written.
         && request.resource.data.tenantId == resource.data.tenantId
@@ -174,6 +187,47 @@ service cloud.firestore {
       // place and the old key stops resolving the moment the new one exists.
       allow update: if false;
       allow delete: if signedIn() && isOwner(resource.data.tenantId);
+    }
+
+    // ----------------------------------------------------------- site pairing
+    // Scan-to-link. A WordPress site opens one of these, draws its id as a QR code and waits. The
+    // app scans it, registers the domain, and writes back the same one-time link code the typed
+    // flow uses; the site redeems that code and closes the session.
+    //
+    // create and the closing update are unauthenticated because the plugin has no Firebase account
+    // at all - the same reason burning a link code is. The 32-character document id is the whole
+    // capability, and list is refused, so a session cannot be found without the QR code.
+    //
+    // Nothing secret is stored here. The code inside is single use, dies in ten minutes, and is
+    // worthless without the linkCodes document it points at.
+    match /sitePairings/{session} {
+      allow get: if true;
+      allow list: if false;
+
+      // Opened by the site. The lifetime is capped so an abandoned session cannot linger, and
+      // status is pinned to waiting so one can never be born already answered.
+      allow create: if session.size() >= 24
+        && request.resource.data.keys().hasOnly(['domain', 'siteUrl', 'siteName', 'status', 'createdAt', 'expiresAt'])
+        && request.resource.data.status == 'waiting'
+        && request.resource.data.expiresAt is timestamp
+        && request.resource.data.expiresAt > request.time
+        && request.resource.data.expiresAt < request.time + duration.value(15, 'm');
+
+      // Answered by the app: signed in, session still open and in date. It may only add the code
+      // and the account email, so it can never rewrite the domain the site asked about.
+      allow update: if signedIn()
+        && resource.data.status == 'waiting'
+        && request.time < resource.data.expiresAt
+        && request.resource.data.status == 'ready'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'linkCode', 'ownerEmail', 'answeredAt']);
+
+      // Closed by the site, once it has redeemed the code or given up. status only ever moves
+      // forwards, and no other field can be touched on the way.
+      allow update: if resource.data.status in ['waiting', 'ready']
+        && request.resource.data.status in ['done', 'cancelled']
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']);
+
+      allow delete: if false;
     }
 
     // ------------------------------------------------------------- link codes

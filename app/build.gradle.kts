@@ -224,6 +224,7 @@ dependencies {
     // Room is the single source of truth the UI reads from; Firebase writes into it.
     implementation("androidx.room:room-runtime:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
+    debugImplementation("com.android.tools.studio.leakcanary:leakcanary:1.0.0")
     ksp("androidx.room:room-compiler:2.6.1")
 
     // Coil decodes gallery wallpapers scaled to the composable bounds, not full resolution.

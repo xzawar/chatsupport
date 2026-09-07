@@ -156,6 +156,28 @@
               "$other": { ".validate": false }
             },
 
+            // The satisfaction rating the widget collects when a thread closes.
+            //
+            // It lives on the conversation and not in messages, because a rating is
+            // asked for AFTER status flips to closed, and the message rules refuse a
+            // visitor write once that has happened. A rating shaped as a message could
+            // never be saved.
+            //
+            // The visitor writes it directly. That is safe because the widget is signed
+            // in anonymously and its uid is already recorded as visitorUid on this
+            // conversation, so the write is scoped to the one thread that visitor owns
+            // and cannot touch any other. Overwrite is allowed on purpose: a visitor
+            // correcting their own rating is legitimate, and refusing it would only
+            // leave a wrong value in place.
+            "rating": {
+              ".write": "auth != null && (root.child('chats').child($tenantId).child('ownerUid').val() === auth.uid || root.child('chats').child($tenantId).child('sessions').child(auth.uid).exists() || root.child('chats').child($tenantId).child('conversations').child($conversationId).child('visitorUid').val() === auth.uid)",
+              ".validate": "newData.hasChildren(['score', 'at'])",
+              "score": { ".validate": "newData.val() === 'happy' || newData.val() === 'neutral' || newData.val() === 'sad'" },
+              "comment": { ".validate": "newData.isString() && newData.val().length <= 2000" },
+              "at": { ".validate": "newData.isNumber()" },
+              "$other": { ".validate": false }
+            },
+
             "$other": { ".validate": false }
           }
         },

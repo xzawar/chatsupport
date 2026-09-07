@@ -44,6 +44,7 @@ import com.codexce.supportchat.notifications.PushRegistration
 import com.codexce.supportchat.ui.screens.AccountScreen
 import com.codexce.supportchat.ui.screens.ChatScreen
 import com.codexce.supportchat.ui.screens.ComingSoonScreen
+import com.codexce.supportchat.ui.screens.DeveloperScreen
 import com.codexce.supportchat.ui.screens.EmailsScreen
 import com.codexce.supportchat.ui.screens.HelpScreen
 import com.codexce.supportchat.ui.screens.LinkWebsiteScreen
@@ -93,6 +94,7 @@ fun SupportChatApp(
      */
     val tenant by TenantSession.tenant.collectAsStateWithLifecycle()
     val tenantId = tenant?.tenantId
+    val devModeEnabled by preferences.devMode.collectAsStateWithLifecycle()
     val repository = remember(tenantId) { SupportRepository.create(context, tenantId ?: "") }
     val scope = rememberCoroutineScope()
 
@@ -390,6 +392,7 @@ fun SupportChatApp(
                         onOpenWallpaper = { navController.navigate(Routes.WALLPAPER) },
                         onOpenLinkWebsite = { navController.navigate(Routes.LINK_WEBSITE) },
                         onOpenLinkComputer = { navController.navigate(Routes.LINK_COMPUTER) },
+                        onOpenDeveloper = { navController.navigate(Routes.DEVELOPER) },
                         onOpenHelp = { navController.navigate(Routes.HELP) },
                         onComingSoon = { navController.navigate(Routes.comingSoon(it)) },
                         // Sign out lives here now, at the bottom of Settings, rather than
@@ -448,11 +451,18 @@ fun SupportChatApp(
                 pushComposable(Routes.LINK_WEBSITE) {
                     LinkWebsiteScreen(
                         signedInEmail = auth.user?.email,
+                        devMode = devModeEnabled,
                         onBack = { navController.popBackStack() },
                     )
                 }
                 pushComposable(Routes.LINK_COMPUTER) {
                     LinkComputerScreen(onBack = { navController.popBackStack() })
+                }
+                pushComposable(Routes.DEVELOPER) {
+                    DeveloperScreen(
+                        preferences = preferences,
+                        onBack = { navController.popBackStack() },
+                    )
                 }
                 pushComposable(Routes.STORAGE) {
                     /*

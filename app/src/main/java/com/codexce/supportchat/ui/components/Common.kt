@@ -42,6 +42,19 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.codexce.supportchat.ui.theme.GroupedCardShape
 import com.codexce.supportchat.ui.theme.SettingsTileShape
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.font.FontFamily
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.codexce.supportchat.data.AppPreferences
 
 /**
  * The back affordance for every screen that has one.
@@ -238,34 +251,85 @@ fun SettingsRow(
     }
 }
 
-/** Surfaces a rejected Firebase write. Previously these failures were invisible. */
+/**
+ * Surfaces a failure without putting a stack trace in front of a customer.
+ *
+ * [message] is always shown and is expected to be one plain sentence. [detail] is the unedited
+ * diagnostic, and it appears only when developer mode is on - collapsed, behind a tap, and
+ * copyable, because the point of a diagnostic is that it can be sent to someone.
+ *
+ * Developer mode is read here rather than passed in by each caller. There are a dozen error
+ * surfaces in this app and a rule that has to be re-applied in twelve places is a rule that will
+ * be wrong in at least one of them. Callers supply the detail; this decides who may see it.
+ */
 @Composable
 fun ErrorBanner(
     message: String,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
+    detail: String? = null,
 ) {
+    val devMode by AppPreferences.get(LocalContext.current).devMode.collectAsStateWithLifecycle()
+    val clipboard = LocalClipboardManager.current
+
+    // Keyed on detail so a new failure always arrives collapsed rather than inheriting the last
+    // one's expanded state and looking like it has already been read.
+    var expanded by remember(detail) { mutableStateOf(false) }
+
+    val hasDetail = devMode && !detail.isNullOrBlank()
+
     Surface(
         modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.errorContainer,
         contentColor = MaterialTheme.colorScheme.onErrorContainer,
     ) {
-        Row(
-            Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = message,
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.weight(1f),
-            )
-            Spacer(Modifier.width(10.dp))
-            Text(
-                text = "Dismiss",
-                style = MaterialTheme.typography.labelMedium,
-                modifier = Modifier.safeClickable(onClick = onDismiss),
-            )
+        Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = message,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.weight(1f),
+                )
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    text = "Dismiss",
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.safeClickable(onClick = onDismiss),
+                )
+            }
+
+            if (hasDetail) {
+                Spacer(Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = if (expanded) "Hide details" else "Show details",
+                        style = MaterialTheme.typography.labelMedium,
+                        modifier = Modifier.safeClickable { expanded = !expanded },
+                    )
+                    Spacer(Modifier.width(16.dp))
+                    Text(
+                        text = "Copy",
+                        style = MaterialTheme.typography.labelMedium,
+                        modifier = Modifier.safeClickable {
+                            clipboard.setText(AnnotatedString(detail.orEmpty()))
+                        },
+                    )
+                }
+
+                AnimatedVisibility(
+                    visible = expanded,
+                    enter = fadeIn() + expandVertically(),
+                    exit = fadeOut() + shrinkVertically(),
+                ) {
+                    Text(
+                        text = detail.orEmpty(),
+                        style = MaterialTheme.typography.bodySmall,
+                        fontFamily = FontFamily.Monospace,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                }
+            }
         }
     }
 }

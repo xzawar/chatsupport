@@ -33,6 +33,9 @@ object Routes {
     const val LINK_WEBSITE = "linkWebsite"
     const val LINK_COMPUTER = "linkComputer"
 
+    /** Hidden developer mode, reached by tapping the version footer in Settings seven times. */
+    const val DEVELOPER = "developer"
+
     /** Plans and coupons. Owner only; the row is not shown to agents. */
     const val SUBSCRIPTION = "subscription"
 

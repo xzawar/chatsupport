@@ -1,10 +1,9 @@
 package com.codexce.supportchat.viewmodel
 
 import android.content.Context
-import androidx.credentials.exceptions.GetCredentialCancellationException
-import androidx.credentials.exceptions.NoCredentialException
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.codexce.supportchat.data.AuthErrors
 import com.codexce.supportchat.data.SupportAccount
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
@@ -19,6 +18,14 @@ data class AuthUiState(
     val user: FirebaseUser? = null,
     val submitting: Boolean = false,
     val error: String? = null,
+    /**
+     * The unedited failure, for developer mode only.
+     *
+     * Kept beside [error] rather than folded into it so that the decision about who sees a stack
+     * trace lives in one place - the banner - instead of being baked into the string here, where
+     * it could not be reversed.
+     */
+    val errorDetail: String? = null,
 ) {
     val signedIn: Boolean get() = user != null
     val uid: String? get() = user?.uid
@@ -75,10 +82,12 @@ class AuthViewModel : ViewModel() {
                 val problem = if (user != null) account.ensureProvisioned(user) else null
                 _state.update { it.copy(submitting = false, error = problem) }
             } catch (failure: Throwable) {
+                val described = AuthErrors.describe(failure)
                 _state.update {
                     it.copy(
                         submitting = false,
-                        error = failure.localizedMessage ?: "Sign in failed",
+                        error = described.message,
+                        errorDetail = described.detail,
                     )
                 }
             }
@@ -98,9 +107,10 @@ class AuthViewModel : ViewModel() {
         if (serverClientId.isBlank() || serverClientId.startsWith("REPLACE_")) {
             _state.update {
                 it.copy(
-                    error = "Google sign-in is not configured yet. Enable Google in Firebase " +
-                        "Authentication, add your SHA-1, then put the web client id in " +
-                        "res/values/strings.xml (google_web_client_id).",
+                    error = "Google sign-in is not available yet. Use email for now.",
+                    errorDetail = "google_web_client_id is blank or still a placeholder. Enable " +
+                        "Google in Firebase Authentication, add the SHA-1, then set " +
+                        "google_web_client_id in res/values/strings.xml.",
                 )
             }
             return
@@ -113,35 +123,22 @@ class AuthViewModel : ViewModel() {
                 // and the POST /v1/bootstrap call that mints the tenant claims.
                 account.signInWithGoogle(context, serverClientId)
                 _state.update { it.copy(submitting = false, error = null) }
-            } catch (cancelled: GetCredentialCancellationException) {
-                // A sheet that closes itself right after an account is picked is almost never
-                // the user changing their mind: it is the project's missing SHA-1 fingerprint
-                // making Play services abort the flow. Swallowing this silently is what made
-                // "I pick my account and nothing happens" undebuggable.
-                _state.update {
-                    it.copy(
-                        submitting = false,
-                        error = "Sign-in was cancelled. If the Google sheet closed by itself " +
-                            "right after you chose an account, add your debug SHA-1 in the " +
-                            "Firebase console (Project settings > Your apps > SHA certificate " +
-                            "fingerprints), re-download google-services.json into app/, and " +
-                            "reinstall. The keytool command is in NOTIFICATIONS.md.",
-                    )
-                }
-            } catch (none: NoCredentialException) {
-                _state.update {
-                    it.copy(
-                        submitting = false,
-                        error = "No Google account available. Add one in Settings > " +
-                            "Accounts, or use Sign in with Email. On an emulator this " +
-                            "needs a system image that includes the Play Store.",
-                    )
-                }
             } catch (failure: Throwable) {
+                /*
+                 * One catch, not three.
+                 *
+                 * The old code branched on cancellation, missing-credential and everything else,
+                 * and each branch wrote its own paragraph of setup advice straight into the UI -
+                 * including the SHA-1 fingerprint instructions, which were the longest text on
+                 * the sign-in screen and meaningless to anyone who was not building the app.
+                 * That knowledge is not lost, it moved into AuthErrors as developer detail.
+                 */
+                val described = AuthErrors.describe(failure, googleFlow = true)
                 _state.update {
                     it.copy(
                         submitting = false,
-                        error = failure.localizedMessage ?: "Google sign-in failed",
+                        error = described.message,
+                        errorDetail = described.detail,
                     )
                 }
             }
@@ -150,8 +147,8 @@ class AuthViewModel : ViewModel() {
 
     fun signOut() {
         auth.signOut()
-        _state.update { it.copy(error = null) }
+        _state.update { it.copy(error = null, errorDetail = null) }
     }
 
-    fun clearError() = _state.update { it.copy(error = null) }
+    fun clearError() = _state.update { it.copy(error = null, errorDetail = null) }
 }
