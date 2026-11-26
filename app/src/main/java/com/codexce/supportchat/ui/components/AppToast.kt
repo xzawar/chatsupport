@@ -1,5 +1,8 @@
 package com.codexce.supportchat.ui.components
 
+import com.codexce.supportchat.ui.theme.Motion
+import com.codexce.supportchat.ui.theme.SupportType
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -169,30 +172,26 @@ fun ToastHost(modifier: Modifier = Modifier) {
             visible = message != null,
             /* In from the right edge, with a touch of lift so it arrives on a diagonal. */
             enter = slideInVertically(
-                animationSpec = tween(ENTER_MILLIS, easing = FastOutSlowInEasing),
-            ) { height -> height + 24 } + fadeIn(tween(ENTER_MILLIS)),
+                animationSpec = tween(ENTER_MILLIS, easing = Motion.EaseEnter),
+            ) { height -> height + 24 } + fadeIn(tween(ENTER_MILLIS, easing = Motion.EaseEnter)),
             /*
              * Out is a fade with only a small drift. Sending it all the way back off-screen
              * on the way out draws the eye to something that is already finished with.
              */
-            exit = fadeOut(tween(EXIT_MILLIS)) + slideOutVertically(
-                animationSpec = tween(EXIT_MILLIS, easing = FastOutSlowInEasing),
+            exit = fadeOut(tween(EXIT_MILLIS, easing = Motion.EaseExit)) + slideOutVertically(
+                animationSpec = tween(EXIT_MILLIS, easing = Motion.EaseExit),
             ) { height -> height / 3 },
         ) {
             Surface(
-                shape = RoundedCornerShape(14.dp),
+                shape = RoundedCornerShape(16.dp),
                 /*
-                 * Surface, not inverseSurface.
-                 *
-                 * inverseSurface is deliberately the opposite of the page - a dark card in
-                 * light mode and a light card in dark mode - which is the Material default and
-                 * the opposite of what this app wants. surfaceContainerHigh follows the theme
-                 * instead: light card on the light scheme, dark card on the true-black one, one
-                 * step lifted off the page so it still reads as sitting above the list.
+                 * The inverse theme: a dark card on the light scheme, a light one on the dark
+                 * scheme. A toast is transient feedback floating above content, and inverting it
+                 * is what lets it read as "above" without a heavy shadow or a border.
                  */
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                contentColor = MaterialTheme.colorScheme.onSurface,
-                shadowElevation = 8.dp,
+                color = MaterialTheme.colorScheme.inverseSurface,
+                contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+                shadowElevation = 6.dp,
                 modifier = Modifier.widthIn(max = 320.dp),
             ) {
                 Row(
@@ -215,9 +214,10 @@ fun ToastHost(modifier: Modifier = Modifier) {
                          * action of the toast that replaced it.
                          */
                         Text(
-                            text = label.uppercase(),
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.primary,
+                            text = label,
+                            style = SupportType.bodyBold,
+                            color = MaterialTheme.colorScheme.inverseOnSurface,
+                            textDecoration = TextDecoration.Underline,
                             modifier = Modifier.safeClickable {
                                 val pending = message?.action
                                 AppToast.dismiss()

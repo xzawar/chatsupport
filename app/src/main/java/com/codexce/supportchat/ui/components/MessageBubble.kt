@@ -5,7 +5,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
@@ -13,71 +15,73 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.codexce.supportchat.data.model.ChatMessage
-import com.codexce.supportchat.ui.theme.BrandDeep
+import com.codexce.supportchat.ui.theme.SupportTheme
+import com.codexce.supportchat.ui.theme.SupportType
 
+/*
+ * Two shapes, built once. A new RoundedCornerShape per bubble per recomposition is a small
+ * allocation multiplied by every message on screen.
+ */
+private val OwnerShape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = 16.dp, bottomEnd = 4.dp)
+private val VisitorShape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = 4.dp, bottomEnd = 16.dp)
+
+/** Default bubble width cap. ChatScreen passes a width derived from the window instead. */
+val DefaultBubbleMaxWidth: Dp = 300.dp
+
+/**
+ * One chat message.
+ *
+ * Both bubbles are tints, not solid fills: the outgoing one is the soft brand tint with ink text,
+ * the incoming one the neutral tint. Reading a thread is a long, calm task, so neither side is
+ * allowed to shout; the send button is the one bright thing on this screen.
+ */
 @Composable
-fun MessageBubble(message: ChatMessage, modifier: Modifier = Modifier) {
-    // Start Chat writes a "You're now connected with ..." message into the thread. It belongs to
-    // neither side, so it gets a centred chip rather than a bubble with a tail.
+fun MessageBubble(
+    message: ChatMessage,
+    modifier: Modifier = Modifier,
+    maxWidth: Dp = DefaultBubbleMaxWidth,
+) {
     if (message.isSystem) {
         SystemNotice(text = message.text, modifier = modifier)
         return
     }
 
     val fromOwner = message.fromOwner
-    val shape = RoundedCornerShape(
-        topStart = 18.dp,
-        topEnd = 18.dp,
-        bottomStart = if (fromOwner) 18.dp else 6.dp,
-        bottomEnd = if (fromOwner) 6.dp else 18.dp,
-    )
+    val c = SupportTheme.colors
+    val time = remember(message.createdAt) { formatTime(message.createdAt) }
+
     Row(
-        // Phase 9: the thread container tightens from 16dp/3dp to 12dp/2dp, and bubbles cap at
-        // 280dp rather than 300dp, so the column of text reads narrower and denser.
         modifier = modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 2.dp),
         horizontalArrangement = if (fromOwner) Arrangement.End else Arrangement.Start,
     ) {
         Box(
             Modifier
-                .widthIn(max = 280.dp)
-                .clip(shape)
+                .widthIn(max = maxWidth)
+                .clip(if (fromOwner) OwnerShape else VisitorShape)
                 .background(
-                    // Outgoing bubbles are BrandDeep rather than colorScheme.primary. primary is
-                    // SkyLight in the dark appearance, and white on SkyLight is about 1.9:1 -
-                    // unreadable. BrandDeep is the one blue this app puts behind white text.
-                    if (fromOwner) {
-                        BrandDeep
-                    } else {
-                        MaterialTheme.colorScheme.surfaceContainerHigh
-                    },
+                    if (fromOwner) c.accentSoft else MaterialTheme.colorScheme.surfaceContainerLow,
                 )
-                .padding(horizontal = 12.dp, vertical = 7.dp),
+                .padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 6.dp),
         ) {
             Column(horizontalAlignment = Alignment.End) {
                 Text(
                     text = message.text,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (fromOwner) {
-                        Color.White
-                    } else {
-                        MaterialTheme.colorScheme.onSurface
-                    },
+                    style = SupportType.largeBody,
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
+                Spacer(Modifier.height(2.dp))
                 Text(
-                    text = formatTime(message.createdAt),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (fromOwner) {
-                        Color.White.copy(alpha = 0.7f)
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
+                    text = time,
+                    style = SupportType.nav,
+                    color = c.contentTertiary,
                 )
             }
         }
@@ -92,13 +96,13 @@ private fun SystemNotice(text: String, modifier: Modifier = Modifier) {
     ) {
         Text(
             text = text,
-            style = MaterialTheme.typography.labelSmall,
+            style = SupportType.nav,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
             modifier = Modifier
                 .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                .padding(horizontal = 12.dp, vertical = 5.dp),
+                .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                .padding(horizontal = 12.dp, vertical = 4.dp),
         )
     }
 }

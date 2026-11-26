@@ -1,5 +1,8 @@
 package com.codexce.supportchat.notifications
 
+import android.media.AudioAttributes
+import android.media.RingtoneManager
+import android.app.Notification
 import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -69,6 +72,22 @@ object PushNotifications {
             description = "New messages from visitors"
             enableVibration(true)
             setShowBadge(true)
+            // High alert: heads-up, the notification sound on the "instant message" stream (so
+            // Do Not Disturb rules for messages apply correctly), and the LED where there is one.
+            // Channel settings are fixed once created, so these only shape fresh installs;
+            // existing installs already have this channel at IMPORTANCE_HIGH.
+            setSound(
+                RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION),
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_NOTIFICATION_COMMUNICATION_INSTANT)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build(),
+            )
+            enableLights(true)
+            lightColor = BRAND_YELLOW
+            // Message text stays off the lock screen; the public version below says only that
+            // a message arrived.
+            lockscreenVisibility = Notification.VISIBILITY_PRIVATE
         }
         val manager = context.getSystemService(NotificationManager::class.java)
         manager?.createNotificationChannel(channel)
@@ -124,14 +143,36 @@ object PushNotifications {
             conversationId?.let { AvatarBitmap.forPerson(title, it) }
         }.getOrNull()
 
+        val accent = ContextCompat.getColor(context, R.color.notification_accent)
+
+        // What the lock screen shows instead of the visitor's words.
+        val publicVersion = NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_nav_chat_filled)
+            .setColor(accent)
+            .setContentTitle("New message")
+            .setContentText("Unlock to read it")
+            .build()
+
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_nav_chat_filled)
+            .setColor(accent)
             .setLargeIcon(face)
             .setContentTitle(title)
             .setContentText(body)
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+            /*
+             * Below Android 8 there are no channels, and a PRIORITY_HIGH notification only pops
+             * up as a heads-up if it also makes a sound or vibrates. Without these defaults every
+             * message on Android 7 arrived silently in the shade. Ignored from Android 8 on,
+             * where the channel above decides.
+             */
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
+            .setPublicVersion(publicVersion)
+            .setWhen(System.currentTimeMillis())
+            .setShowWhen(true)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
             .build()
@@ -141,6 +182,9 @@ object PushNotifications {
                 .notify(notificationId, notification)
         }
     }
+
+    /** The icon's yellow, for the notification LED. */
+    private const val BRAND_YELLOW = 0xFFFDD32B.toInt()
 
     /** Tray ids for pushes that name no conversation. Kept well clear of real hash codes. */
     private val UNTARGETED_ID_SEQUENCE = java.util.concurrent.atomic.AtomicInteger(900_000)

@@ -2,6 +2,7 @@
 
 package com.codexce.supportchat.ui.screens
 
+import com.codexce.supportchat.ui.components.responsiveContent
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.background
@@ -254,7 +255,7 @@ private fun DetailScaffold(
             Modifier
                 .fillMaxSize()
                 .padding(insets)
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(rememberScrollState()).responsiveContent(),
             content = content,
         )
     }

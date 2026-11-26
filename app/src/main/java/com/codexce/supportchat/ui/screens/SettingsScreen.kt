@@ -2,6 +2,13 @@
 
 package com.codexce.supportchat.ui.screens
 
+import androidx.compose.runtime.mutableIntStateOf
+import com.codexce.supportchat.ui.components.responsiveContent
+import com.codexce.supportchat.ui.theme.Spacing
+import com.codexce.supportchat.ui.theme.PillShape
+import com.codexce.supportchat.ui.theme.SupportTheme
+import com.codexce.supportchat.ui.theme.SupportType
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -135,7 +142,7 @@ fun SettingsScreen(
      * straight back, see the row update -- and costs one call per visit instead of one per
      * frame. The counter is what invalidates the remember; its value is never read for itself.
      */
-    var resumeCount by remember { mutableStateOf(0) }
+    var resumeCount by remember { mutableIntStateOf(0) }
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -148,7 +155,7 @@ fun SettingsScreen(
     val keepConnected by preferences.keepConnected.collectAsStateWithLifecycle()
     val updateOnStartup by preferences.updateOnStartup.collectAsStateWithLifecycle()
     val devMode by preferences.devMode.collectAsStateWithLifecycle()
-    var versionTaps by remember { mutableStateOf(0) }
+    var versionTaps by remember { mutableIntStateOf(0) }
 
     val scroll = rememberScrollState()
     val collapsePx = with(LocalDensity.current) { HeaderCollapseDistance.toPx() }
@@ -208,7 +215,7 @@ fun SettingsScreen(
             Modifier
                 .fillMaxSize()
                 .padding(insets)
-                .verticalScroll(scroll),
+                .verticalScroll(scroll).responsiveContent(),
         ) {
             /*
              * The collapsing profile header.
@@ -242,7 +249,7 @@ fun SettingsScreen(
                 Text(
                     text = headerName,
                     style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onBackground,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -452,23 +459,28 @@ fun SettingsScreen(
             }
 
             Spacer(Modifier.height(24.dp))
+            // Secondary-negative: pale negative surface, negative text. Findable, not alarming;
+            // a solid red fill is for confirming something irreversible, which this is not.
             Button(
                 onClick = debounced(onSignOut),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
+                    .padding(horizontal = Spacing.gutter)
+                    .heightIn(min = Spacing.buttonHeight),
+                shape = PillShape,
+                elevation = null,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = TintRed,
-                    contentColor = Color.White,
+                    containerColor = SupportTheme.colors.negative.surface,
+                    contentColor = SupportTheme.colors.negative.content,
                 ),
             ) {
                 Icon(
-                    painter = painterResource(AppIcons.LogoutSolid),
+                    painter = painterResource(AppIcons.Logout),
                     contentDescription = null,
-                    modifier = Modifier.size(18.dp),
+                    modifier = Modifier.size(20.dp),
                 )
                 Spacer(Modifier.width(8.dp))
-                Text("Sign out")
+                Text("Sign out", style = SupportType.largeBodyBold)
             }
 
             Text(

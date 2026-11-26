@@ -9,31 +9,32 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -44,261 +45,176 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.codexce.supportchat.R
 import com.codexce.supportchat.ui.components.ErrorBanner
+import com.codexce.supportchat.ui.components.PrimaryButton
 import com.codexce.supportchat.ui.components.debounced
+import com.codexce.supportchat.ui.theme.Motion
+import com.codexce.supportchat.ui.theme.PillShape
+import com.codexce.supportchat.ui.theme.Spacing
+import com.codexce.supportchat.ui.theme.SupportTheme
+import com.codexce.supportchat.ui.theme.SupportType
+import com.codexce.supportchat.ui.theme.supportFieldColors
+import com.codexce.supportchat.ui.theme.supportNeutralButtonColors
+import com.codexce.supportchat.ui.theme.supportSecondaryButtonColors
 import com.codexce.supportchat.viewmodel.AuthViewModel
 
 /*
- * Login gate: an illustration filling the top of the screen, then a cream panel with the heading
- * and two pill buttons.
+ * Login gate, as an info screen in the calm-fintech DNA:
  *
- * The colours below are deliberately hard-coded rather than pulled from MaterialTheme. This is a
- * branded first-run screen and the reference is a single fixed colour scheme, so it looks the same
- * whether the device is in light or dark mode. Every other screen still follows the theme.
+ *   the app icon on a neutral panel (32dp radius, inset from the edges)
+ *   ONE display line in the heavy caps face - the only one in the app's whole first run
+ *   one supporting sentence in the second person
+ *   the footer actions, stacked, primary-style last
  *
+ * Follows the theme, so it is correct in dark mode instead of being a fixed cream page.
  *
- * The fade between the two sections
- * ---------------------------------
- * There were two different seams on this screen and they needed different fixes.
+ * Button hierarchy, and why. Google's branding rules want its button white, dark or neutral, so
+ * it is the neutral pill with the full-colour G. Email is the secondary tint. The accent - the
+ * one bright thing - only appears once there is something to submit: the Sign in button inside
+ * the email fields. Until then nothing on this screen is shouting.
  *
- * 1. The hard horizontal line where the illustration's backdrop met the cream panel. Two flat
- *    near-white colours butting up against each other read as a rendering mistake. Cross-fading the
- *    panel into the image would not fix it, because the boundary is inside the image itself: the
- *    artwork runs all the way to its own bottom edge. So the seam is a 96dp gradient from
- *    transparent to the panel colour, painted on top of the illustration. That dissolves the bottom
- *    of the artwork into the panel rather than cutting it off, and because both sides now share a
- *    colour at the join there is no line left to see.
- *
- * 2. The arrival of the screen. Both sections used to appear at once, fully formed. They now fade
- *    in with the panel trailing the illustration by 130ms, which reads as the page settling instead
- *    of snapping into place. The stagger is deliberately small - long enough to feel sequenced,
- *    short enough that someone who just wants to sign in is not made to watch an animation.
- *
- * Two smaller motion changes come along with those, both for the same reason - every state change
- * on this screen used to be instant, and instant state changes on a first-run screen read as jank
- * rather than as speed:
- *
- *  - Opening the email fields shrinks the illustration instead of growing a scrollbar (see
- *    heroHeight below).
- *  - The email button's label and the sign-in button's spinner cross-fade rather than snapping.
- *
- *
- * Two honest notes about how close this gets to the reference:
- *
- *  - login_hero.png is cropped out of the reference JPG itself, so it is only 552px wide and will
- *    be scaled up roughly 2x on a 1080p phone. It will look slightly soft. A vector or a
- *    full-resolution export of that illustration is the only real fix. The seam gradient does hide
- *    the softest part of it, which is the bottom edge, so this is less obvious than it was.
- *  - The wordmark uses the system sans-serif at its heaviest weight. The typeface in the reference
- *    could not be identified or downloaded here. Drop a .ttf into res/font and swap WordmarkFont
- *    below for an exact match; Poppins ExtraBold and Nunito Black are close free stand-ins.
+ * Motion: the panel and the actions fade in with a short stagger on the enter curve; opening the
+ * email fields shrinks the illustration instead of growing a scrollbar. Both animate a single
+ * value read in the draw/layout phase only.
  */
 
-private val SheetCream = Color(0xFFF5F1EA)
-private val HeroBackdrop = Color(0xFFF7FBFF)
-private val Ink = Color(0xFF111111)
-private val MutedInk = Color(0xFF6E6A65)
-private val HairlineBorder = Color(0x1A000000)
-private val FieldBorder = Color(0x33000000)
-
-/*
- * Depth of the dissolve between the illustration and the panel.
- *
- * 96dp is roughly 12 percent of a typical phone's height. Much shorter than about 64dp and the
- * gradient itself becomes a visible band, which just replaces one hard edge with a softer one.
- */
-private val SeamHeight = 96.dp
-
-private const val IntroFadeMs = 520
-private const val SheetDelayMs = 130
-private const val HeroCollapseMs = 420
+private const val IntroFadeMs = 450
+private const val SheetDelayMs = 120
 private const val LabelFadeMs = 180
-
-// Swap this for FontFamily(Font(R.font.your_font)) once the real typeface is available.
-private val WordmarkFont = FontFamily.SansSerif
 
 @Composable
 fun LoginScreen(authViewModel: AuthViewModel) {
     val auth by authViewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val focus = LocalFocusManager.current
     val scrollState = rememberScrollState()
 
     var emailExpanded by rememberSaveable { mutableStateOf(false) }
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
 
-    /*
-     * rememberSaveable rather than remember, which matters more than it looks.
-     *
-     * With plain remember this flag resets on every configuration change, so rotating the device -
-     * or anything else that recreates the activity - would replay the whole intro underneath the
-     * user's fingers. Saved, the animation plays once, when the screen is genuinely new.
-     */
+    // Saveable so a rotation or process restore does not replay the intro.
     var entered by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(Unit) { entered = true }
 
     val heroAlpha by animateFloatAsState(
         targetValue = if (entered) 1f else 0f,
-        animationSpec = tween(durationMillis = IntroFadeMs),
+        animationSpec = tween(IntroFadeMs, easing = Motion.EaseEnter),
         label = "heroAlpha",
     )
     val sheetAlpha by animateFloatAsState(
         targetValue = if (entered) 1f else 0f,
-        animationSpec = tween(durationMillis = IntroFadeMs, delayMillis = SheetDelayMs),
+        animationSpec = tween(IntroFadeMs, delayMillis = SheetDelayMs, easing = Motion.EaseEnter),
         label = "sheetAlpha",
     )
 
-    /*
-     * The reference gives the illustration a little under two thirds of the screen. Deriving that
-     * from the screen height keeps the ratio on tall and short devices alike.
-     *
-     * When the email fields open, the illustration gives up a bit under 40 percent of its height
-     * rather than the page growing a scrollbar. Two fields plus a button need roughly 200dp, and
-     * taking that from the artwork is what keeps the sign-in controls on screen on a short device.
-     * Animating it means the illustration appears to make room instead of jumping.
-     */
-    val baseHeroHeight = (LocalConfiguration.current.screenHeightDp * 0.58f).dp
+    val baseHeroHeight = (LocalConfiguration.current.screenHeightDp * 0.42f).dp
+        .coerceIn(220.dp, 380.dp)
     val heroHeight by animateDpAsState(
-        targetValue = if (emailExpanded) baseHeroHeight * 0.62f else baseHeroHeight,
-        animationSpec = tween(durationMillis = HeroCollapseMs),
+        targetValue = if (emailExpanded) baseHeroHeight * 0.55f else baseHeroHeight,
+        animationSpec = tween(Motion.SURFACE_MILLIS, easing = Motion.EaseEnter),
         label = "heroHeight",
     )
 
-    /*
-     * Collapsing the hero is usually enough on its own, but on a short device it is not, so the
-     * page also scrolls the new fields into view.
-     *
-     * Keyed on maxValue as well as the flag on purpose: at the moment the flag flips, the fields
-     * have not been measured yet and maxValue is still the old value, so scrolling to it would
-     * land short. maxValue changing after layout re-runs this effect with the real number. The
-     * emailExpanded guard means collapsing - which also changes maxValue - does not scroll.
-     */
     LaunchedEffect(emailExpanded, scrollState.maxValue) {
         if (emailExpanded && scrollState.maxValue > 0) {
             scrollState.animateScrollTo(scrollState.maxValue)
         }
     }
 
+    val canSubmit = !auth.submitting && email.isNotBlank() && password.isNotBlank()
+    val submit = { if (canSubmit) authViewModel.signIn(email, password) }
+
     Box(
         Modifier
             .fillMaxSize()
-            .background(SheetCream),
+            .background(MaterialTheme.colorScheme.background),
+        contentAlignment = Alignment.TopCenter,
     ) {
         Column(
             Modifier
+                .widthIn(max = Spacing.maxContentWidth)
                 .fillMaxSize()
                 .imePadding()
-                .verticalScroll(scrollState),
+                .verticalScroll(scrollState)
+                .statusBarsPadding()
+                .navigationBarsPadding()
+                .padding(horizontal = 8.dp),
         ) {
-            // HERO -------------------------------------------------------------------
+            // The illustration panel: a floating card inset 8dp, 32dp corners.
             Box(
                 Modifier
+                    .padding(top = 8.dp)
                     .fillMaxWidth()
                     .height(heroHeight)
-                    .alpha(heroAlpha)
-                    .background(HeroBackdrop),
+                    .graphicsLayer { alpha = heroAlpha }
+                    .clip(RoundedCornerShape(32.dp))
+                    .background(MaterialTheme.colorScheme.surfaceContainerLow),
+                contentAlignment = Alignment.Center,
             ) {
+                // The app icon itself: the yellow tile is the brand, and a neutral panel lets it
+                // be the one bright thing on the screen until there is something to submit.
                 Image(
-                    painter = painterResource(R.drawable.login_hero),
+                    painter = painterResource(R.drawable.brand_mark),
                     contentDescription = null,
-                    contentScale = ContentScale.FillWidth,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.BottomCenter),
-                )
-
-                /*
-                 * The seam. Drawn after the image so it sits on top of it, and anchored to the
-                 * bottom of the hero so it always meets the panel regardless of how tall the hero
-                 * currently is - including mid-collapse.
-                 */
-                Box(
-                    Modifier
-                        .align(Alignment.BottomCenter)
-                        .fillMaxWidth()
-                        .height(SeamHeight)
-                        .background(
-                            Brush.verticalGradient(
-                                colors = listOf(Color.Transparent, SheetCream),
-                            ),
-                        ),
-                )
-
-                Text(
-                    text = "Support Chat",
-                    fontFamily = WordmarkFont,
-                    fontWeight = FontWeight.Black,
-                    fontSize = 40.sp,
-                    letterSpacing = (-1.2).sp,
-                    color = Ink,
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .statusBarsPadding()
-                        .padding(top = 24.dp),
+                    modifier = Modifier.size(heroHeight * 0.56f),
                 )
             }
 
-            // SHEET ------------------------------------------------------------------
             Column(
                 Modifier
                     .fillMaxWidth()
                     .alpha(sheetAlpha)
-                    .background(SheetCream)
-                    .navigationBarsPadding()
-                    .padding(start = 28.dp, top = 30.dp, end = 28.dp, bottom = 32.dp),
+                    .padding(horizontal = 8.dp)
+                    .padding(top = Spacing.betweenSections, bottom = Spacing.contentToButton),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
-                    text = "Sign in to get started",
-                    color = MutedInk,
-                    fontSize = 16.sp,
+                    text = "SUPPORT CHAT",
+                    style = SupportType.display,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(Modifier.height(Spacing.component))
+                Text(
+                    text = "Answer your website visitors from anywhere.",
+                    style = SupportType.largeBody,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
                 )
 
-                /*
-                 * The banner animates in and out rather than appearing and vanishing, because a
-                 * block of text materialising instantly is the thing that makes an error feel like
-                 * a crash.
-                 *
-                 * detail is what actually addresses the original complaint: the raw failure text no
-                 * longer goes to everyone, it goes behind the dev-mode toggle inside ErrorBanner.
-                 * This screen is where the network error was seen, so this is the call site that
-                 * had to start passing it.
-                 */
                 AnimatedVisibility(
                     visible = auth.error != null,
                     enter = fadeIn() + expandVertically(),
                     exit = fadeOut() + shrinkVertically(),
                 ) {
                     Column(Modifier.fillMaxWidth()) {
-                        Spacer(Modifier.height(16.dp))
+                        Spacer(Modifier.height(Spacing.component))
                         ErrorBanner(
                             message = auth.error.orEmpty(),
                             onDismiss = authViewModel::clearError,
                             detail = auth.errorDetail,
+                            modifier = Modifier.padding(horizontal = 0.dp),
                         )
                     }
                 }
 
-                Spacer(Modifier.height(22.dp))
+                Spacer(Modifier.height(Spacing.contentToButton))
 
-                // Google pill: white with a hairline edge, exactly as in the reference.
+                // Google: the neutral pill with the full-colour G (not tinted, per its brand rules).
                 Button(
                     onClick = debounced {
                         authViewModel.signInWithGoogle(
@@ -307,18 +223,11 @@ fun LoginScreen(authViewModel: AuthViewModel) {
                         )
                     },
                     enabled = !auth.submitting,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
-                    shape = RoundedCornerShape(28.dp),
-                    border = BorderStroke(1.dp, HairlineBorder),
-                    elevation = ButtonDefaults.buttonElevation(0.dp, 0.dp, 0.dp, 0.dp, 0.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.White,
-                        contentColor = Ink,
-                        disabledContainerColor = Color.White,
-                        disabledContentColor = MutedInk,
-                    ),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.buttonHeight),
+                    shape = PillShape,
+                    elevation = null,
+                    colors = supportNeutralButtonColors(),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -330,54 +239,42 @@ fun LoginScreen(authViewModel: AuthViewModel) {
                             modifier = Modifier.size(20.dp),
                         )
                         Spacer(Modifier.size(12.dp))
-                        Text(
-                            text = "Sign in with Google",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold,
-                        )
+                        Text("Continue with Google", style = SupportType.largeBodyBold)
                     }
                 }
 
-                Spacer(Modifier.height(14.dp))
+                Spacer(Modifier.height(Spacing.betweenCards))
 
-                // The reference puts an Apple button here. You said Apple is not added, so this
-                // slot keeps the email method the app already relies on.
                 Button(
                     onClick = debounced { emailExpanded = !emailExpanded },
                     enabled = !auth.submitting,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
-                    shape = RoundedCornerShape(28.dp),
-                    elevation = ButtonDefaults.buttonElevation(0.dp, 0.dp, 0.dp, 0.dp, 0.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Ink,
-                        contentColor = Color.White,
-                        disabledContainerColor = Ink.copy(alpha = 0.4f),
-                        disabledContentColor = Color.White,
-                    ),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = Spacing.buttonHeight),
+                    shape = PillShape,
+                    elevation = null,
+                    colors = supportSecondaryButtonColors(),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
                 ) {
-                    // Two different words in the same slot, so they cross-fade rather than swap.
                     Crossfade(
                         targetState = emailExpanded,
-                        animationSpec = tween(durationMillis = LabelFadeMs),
+                        animationSpec = tween(LabelFadeMs, easing = Motion.EaseStandard),
                         label = "emailMethodLabel",
                     ) { expanded ->
                         Text(
-                            text = if (expanded) "Use another method" else "Sign in with Email",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold,
+                            text = if (expanded) "Use Google instead" else "Continue with email",
+                            style = SupportType.largeBodyBold,
                         )
                     }
                 }
 
                 AnimatedVisibility(
                     visible = emailExpanded,
-                    enter = fadeIn() + expandVertically(),
-                    exit = fadeOut() + shrinkVertically(),
+                    enter = fadeIn(tween(Motion.STANDARD_MILLIS, easing = Motion.EaseEnter)) +
+                        expandVertically(tween(Motion.STANDARD_MILLIS, easing = Motion.EaseEnter)),
+                    exit = fadeOut(tween(Motion.FAST_MILLIS, easing = Motion.EaseExit)) +
+                        shrinkVertically(tween(Motion.FAST_MILLIS, easing = Motion.EaseExit)),
                 ) {
                     Column(Modifier.fillMaxWidth()) {
-                        Spacer(Modifier.height(20.dp))
+                        Spacer(Modifier.height(Spacing.contentToButton))
                         OutlinedTextField(
                             value = email,
                             onValueChange = { email = it },
@@ -385,14 +282,15 @@ fun LoginScreen(authViewModel: AuthViewModel) {
                             label = { Text("Email") },
                             singleLine = true,
                             enabled = !auth.submitting,
+                            textStyle = SupportType.largeBody,
                             keyboardOptions = KeyboardOptions(
                                 keyboardType = KeyboardType.Email,
                                 imeAction = ImeAction.Next,
                             ),
                             shape = RoundedCornerShape(16.dp),
-                            colors = loginFieldColors(),
+                            colors = supportFieldColors(),
                         )
-                        Spacer(Modifier.height(12.dp))
+                        Spacer(Modifier.height(Spacing.betweenCards))
                         OutlinedTextField(
                             value = password,
                             onValueChange = { password = it },
@@ -400,80 +298,29 @@ fun LoginScreen(authViewModel: AuthViewModel) {
                             label = { Text("Password") },
                             singleLine = true,
                             enabled = !auth.submitting,
+                            textStyle = SupportType.largeBody,
                             visualTransformation = PasswordVisualTransformation(),
                             keyboardOptions = KeyboardOptions(
                                 keyboardType = KeyboardType.Password,
                                 imeAction = ImeAction.Done,
                             ),
+                            keyboardActions = KeyboardActions(onDone = {
+                                focus.clearFocus()
+                                submit()
+                            }),
                             shape = RoundedCornerShape(16.dp),
-                            colors = loginFieldColors(),
+                            colors = supportFieldColors(),
                         )
-                        Spacer(Modifier.height(16.dp))
-                        Button(
-                            onClick = debounced { authViewModel.signIn(email, password) },
-                            enabled = !auth.submitting &&
-                                email.isNotBlank() && password.isNotBlank(),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(56.dp),
-                            shape = RoundedCornerShape(28.dp),
-                            elevation = ButtonDefaults.buttonElevation(0.dp, 0.dp, 0.dp, 0.dp, 0.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Ink,
-                                contentColor = Color.White,
-                                disabledContainerColor = Ink.copy(alpha = 0.25f),
-                                disabledContentColor = Color.White,
-                            ),
-                        ) {
-                            /*
-                             * The spinner replacing the label was the most abrupt transition left
-                             * on the screen, and it fires on the one tap the user actually cares
-                             * about. Cross-faded, the button reads as busy rather than as broken.
-                             */
-                            Crossfade(
-                                targetState = auth.submitting,
-                                animationSpec = tween(durationMillis = LabelFadeMs),
-                                label = "signInButtonState",
-                            ) { busy ->
-                                if (busy) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(18.dp),
-                                        strokeWidth = 2.dp,
-                                        color = Color.White,
-                                    )
-                                } else {
-                                    Text(
-                                        text = "Sign in",
-                                        fontSize = 16.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                    )
-                                }
-                            }
-                        }
+                        Spacer(Modifier.height(Spacing.contentToButton))
+                        PrimaryButton(
+                            text = "Sign in",
+                            onClick = { submit() },
+                            enabled = email.isNotBlank() && password.isNotBlank(),
+                            loading = auth.submitting,
+                        )
                     }
                 }
             }
         }
     }
 }
-
-/*
- * The sheet is a fixed cream colour, so the text fields cannot inherit theme colours: in dark mode
- * that would paint light text onto a light panel.
- */
-@Composable
-private fun loginFieldColors() = OutlinedTextFieldDefaults.colors(
-    focusedTextColor = Ink,
-    unfocusedTextColor = Ink,
-    disabledTextColor = MutedInk,
-    cursorColor = Ink,
-    focusedBorderColor = Ink,
-    unfocusedBorderColor = FieldBorder,
-    disabledBorderColor = HairlineBorder,
-    focusedLabelColor = MutedInk,
-    unfocusedLabelColor = MutedInk,
-    disabledLabelColor = MutedInk,
-    focusedContainerColor = Color.White,
-    unfocusedContainerColor = Color.White,
-    disabledContainerColor = Color.White,
-)

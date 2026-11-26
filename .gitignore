@@ -35,3 +35,6 @@ local.properties
 
 # google-services.json is project-specific config, not a secret, but it is also not shared here.
 app/google-services.json
+
+# Kotlin 2.x compiler session data, created by every local Gradle build.
+.kotlin/

@@ -1,5 +1,8 @@
 package com.codexce.supportchat.ui.screens
 
+import com.codexce.supportchat.ui.theme.supportFieldColors
+import androidx.compose.foundation.shape.RoundedCornerShape
+import com.codexce.supportchat.ui.components.SecondaryButton
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -219,6 +222,8 @@ fun EmailsScreen(
                         label = { Text("Name") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
+                        colors = supportFieldColors(),
+                        shape = RoundedCornerShape(16.dp),
                     )
                     Spacer(Modifier.height(10.dp))
                     OutlinedTextField(
@@ -229,6 +234,8 @@ fun EmailsScreen(
                         label = { Text("Subject") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
+                        colors = supportFieldColors(),
+                        shape = RoundedCornerShape(16.dp),
                     )
                     Spacer(Modifier.height(10.dp))
                     OutlinedTextField(
@@ -237,6 +244,8 @@ fun EmailsScreen(
                         label = { Text("Body") },
                         minLines = 4,
                         modifier = Modifier.fillMaxWidth(),
+                        colors = supportFieldColors(),
+                        shape = RoundedCornerShape(16.dp),
                     )
                     if (state.editorError != null) {
                         Spacer(Modifier.height(8.dp))
@@ -430,9 +439,11 @@ private fun androidx.compose.foundation.lazy.LazyListScope.templatesSection(
                         title = "No templates",
                         message = "Create one to reuse the same wording across campaigns.",
                         action = {
-                            OutlinedButton(onClick = debounced(viewModel::newTemplate)) {
-                                Text("New template")
-                            }
+                            SecondaryButton(
+                                text = "New template",
+                                onClick = viewModel::newTemplate,
+                                icon = AppIcons.Plus,
+                            )
                         },
                     )
                 }

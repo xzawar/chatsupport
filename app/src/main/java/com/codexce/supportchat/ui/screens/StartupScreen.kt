@@ -1,5 +1,10 @@
 package com.codexce.supportchat.ui.screens
 
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import com.codexce.supportchat.R
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.padding
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -20,7 +25,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
-import com.codexce.supportchat.ui.theme.IconBlue
 
 /*
  * Cold start.
@@ -51,7 +55,18 @@ fun StartupScreen(modifier: Modifier = Modifier) {
             .background(MaterialTheme.colorScheme.background),
         contentAlignment = Alignment.Center,
     ) {
-        IndeterminateBar()
+        /*
+         * The same tile, at the same size and position, as the system splash (splash_icon.xml
+         * draws it at 152dp, centred). The handover from the splash window to this first frame
+         * is therefore invisible: the icon stays put and only the bar appears beneath it. The
+         * image is a 384px lossless webp, a single small decode.
+         */
+        Image(
+            painter = painterResource(R.drawable.brand_mark),
+            contentDescription = null,
+            modifier = Modifier.size(152.dp),
+        )
+        IndeterminateBar(Modifier.padding(top = 152.dp + 64.dp))
     }
 }
 
@@ -104,10 +119,10 @@ private fun IndeterminateBar(modifier: Modifier = Modifier) {
                     translationX = progress * trackWidth.toPx()
                 }
                 .clip(RoundedCornerShape(percent = 50))
-                // The launcher icon's blue, not the UI accent. This bar is the first thing drawn
-                // after the system splash hands over, so it continues the icon rather than
-                // introducing the accent a moment early.
-                .background(IconBlue),
+                // Primary, not the accent: the brand yellow is 1.45:1 against the white splash
+                // and a 3dp yellow line on it would all but vanish. Primary is the icon's
+                // charcoal in light mode and the yellow itself in dark mode.
+                .background(MaterialTheme.colorScheme.primary),
         )
     }
 }

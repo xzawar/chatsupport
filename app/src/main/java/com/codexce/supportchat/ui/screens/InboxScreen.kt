@@ -2,6 +2,16 @@
 
 package com.codexce.supportchat.ui.screens
 
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.derivedStateOf
+import com.codexce.supportchat.data.AppPreferences
+import androidx.compose.ui.platform.LocalContext
+import com.codexce.supportchat.ui.theme.SupportTheme
+import androidx.compose.foundation.layout.statusBarsPadding
+import com.codexce.supportchat.ui.components.ScreenTitle
+import com.codexce.supportchat.ui.components.PrimaryButton
+import com.codexce.supportchat.ui.components.InfoBox
+import androidx.compose.ui.draw.clip
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -88,41 +98,39 @@ fun InboxScreen(
     bottomPadding: Dp,
 ) {
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = "Inbox",
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                    )
-                },
+            // A top-level screen: the large left-aligned screen title, the one action beside it.
+            ScreenTitle(
+                title = "Inbox",
+                modifier = Modifier.statusBarsPadding().padding(top = 12.dp, bottom = 4.dp),
                 actions = {
                     IconButton(onClick = debounced(onOpenSettings)) {
-                        Icon(
-                            painter = painterResource(AppIcons.Menu),
-                            contentDescription = "Menu",
-                            // Phase 9: 22dp to 26dp. It is the only affordance in the header
-                            // and was reading as smaller than the search glyph below it.
-                            modifier = Modifier.size(26.dp),
-                        )
+                        Box(
+                            Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.surfaceContainerLow),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                painter = painterResource(AppIcons.Menu),
+                                contentDescription = "Settings",
+                                modifier = Modifier.size(22.dp),
+                            )
+                        }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    // Phase 9: the header separates from the list by one surface-container step
-                    // instead of a rule underneath it.
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                ),
             )
         },
     ) { insets ->
         if (agentUid == null) {
             EmptyState(
                 icon = AppIcons.Lock,
-                title = "Not signed in",
-                message = "Sign in from the Account page to start receiving messages.",
+                title = "You're signed out",
+                message = "Sign in to start receiving your visitors' messages.",
                 modifier = Modifier.padding(insets),
-                action = { Button(colors = supportButtonColors(), onClick = debounced(onOpenAccount)) { Text("Open Account") } },
+                action = { PrimaryButton(text = "Sign in", onClick = onOpenAccount) },
             )
             return@Scaffold
         }
@@ -142,6 +150,7 @@ fun InboxScreen(
         // land on the same generic database error. Checked before loadError on purpose: the read
         // failure is a symptom of the lapsed plan, so the plan is what we should talk about.
         val subscriptionLapsed = tenant?.subscriptionActive == false
+        val devModeOn by AppPreferences.get(LocalContext.current).devMode.collectAsStateWithLifecycle()
 
         Column(Modifier.fillMaxSize().padding(insets)) {
             // The search bar and the filter chips share one shaded band, which is what visually
@@ -149,7 +158,7 @@ fun InboxScreen(
             Column(
                 Modifier
                     .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.surfaceContainerLow),
+                    .background(MaterialTheme.colorScheme.background),
             ) {
                 // A filled capsule, not an outlined box. An outline plus a shaded header band
                 // draws the same boundary twice, which is what made this read as a form field
@@ -159,8 +168,14 @@ fun InboxScreen(
                     onValueChange = viewModel::setQuery,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 6.dp),
-                    placeholder = { Text("Search", style = MaterialTheme.typography.bodyMedium) },
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    placeholder = {
+                        Text(
+                            "Search names and messages",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = SupportTheme.colors.contentTertiary,
+                        )
+                    },
                     leadingIcon = {
                         Icon(
                             painter = painterResource(AppIcons.Search),
@@ -169,11 +184,13 @@ fun InboxScreen(
                         )
                     },
                     singleLine = true,
-                    textStyle = MaterialTheme.typography.bodyMedium,
+                    textStyle = MaterialTheme.typography.bodyLarge,
                     shape = CircleShape,
                     colors = TextFieldDefaults.colors(
-                        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                        focusedLeadingIconColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                         // The default underline cuts across the bottom of a capsule. Cleared in
                         // both states so the shape stays a clean pill.
                         focusedIndicatorColor = Color.Transparent,
@@ -204,18 +221,25 @@ fun InboxScreen(
                 // and chat hangs off chats/{tenantId} - so the advice was actively misleading.
                 state.loadError != null -> EmptyState(
                     icon = AppIcons.Cloud,
-                    title = "Cannot read the inbox",
-                    message = state.loadError.orEmpty() +
-                        "\n\nThis usually means the database rules have not been published yet, " +
-                        "or the website widget is still writing to a different account.",
+                    // Title + one sentence. The raw failure and the setup hints are diagnostics,
+                    // so they go behind developer mode in the banner rather than in front of
+                    // every owner.
+                    title = "We couldn't load your inbox",
+                    message = "Check your connection. If it keeps happening, your website " +
+                        "widget may be linked to a different account.",
+                    action = if (devModeOn) {
+                        { InfoBox(text = state.loadError.orEmpty(), title = "Details") }
+                    } else {
+                        null
+                    },
                 )
 
                 state.visible.isEmpty() -> EmptyState(
                     icon = AppIcons.ChatOutline,
-                    title = "Nothing here",
+                    title = "No chats here yet",
                     // Kept short on purpose. The old wording wrapped onto a second line with a
                     // single word stranded on it, which looks like a typo rather than a message.
-                    message = "No conversations match this filter.",
+                    message = "Try another filter, or wait for your next visitor.",
                 )
 
                 else -> LazyColumn(
@@ -323,7 +347,7 @@ private fun SwipeableConversationRow(
     val scope = rememberCoroutineScope()
     val haptics = LocalHapticFeedback.current
 
-    var rowWidth by remember { mutableStateOf(0f) }
+    var rowWidth by remember { mutableFloatStateOf(0f) }
     val offsetX = remember { Animatable(0f) }
     /*
      * Lid angle in degrees, and it is the whole animation now.
@@ -337,8 +361,17 @@ private fun SwipeableConversationRow(
     val lidAngle = remember { Animatable(0f) }
 
     val armAt = rowWidth * SwipeArmFraction
-    val travel = if (armAt > 0f) (-offsetX.value / armAt).coerceIn(0f, 1f) else 0f
-    val armed = travel >= 1f
+
+    /*
+     * Read the drag offset in the DRAW phase, not in composition. offsetX changes every frame of
+     * a drag; reading it here directly made the whole row - avatar, texts, badge - recompose at
+     * the display refresh rate while the finger moved. Composition now only sees the two
+     * booleans below, which flip at most a couple of times per swipe, and everything continuous
+     * (panel alpha and slide, lid angle) is computed inside graphicsLayer lambdas.
+     */
+    fun travel(): Float = if (armAt > 0f) (-offsetX.value / armAt).coerceIn(0f, 1f) else 0f
+    val armed by remember(armAt) { derivedStateOf { armAt > 0f && -offsetX.value >= armAt } }
+    val panelVisible by remember { derivedStateOf { offsetX.value < -0.5f } }
 
     /*
      * The snap. Keyed on the armed flag rather than on the raw offset, so it fires once on the
@@ -376,8 +409,8 @@ private fun SwipeableConversationRow(
      * means the lid can never travel backwards across the handover - worst case it holds still
      * for a frame until the animation takes over.
      */
-    val lidRotation =
-        if (armed) maxOf(lidAngle.value, LidTrackDegrees) else LidTrackDegrees * travel
+    fun lidRotation(): Float =
+        if (armed) maxOf(lidAngle.value, LidTrackDegrees) else LidTrackDegrees * travel()
 
     Box(
         modifier
@@ -388,7 +421,7 @@ private fun SwipeableConversationRow(
          * The red panel exists only while the row is actually off its mark. Drawing it at rest
          * would let Delete show through underneath every row in the list.
          */
-        if (offsetX.value < -0.5f) {
+        if (panelVisible) {
             Box(
                 Modifier
                     .matchParentSize()
@@ -399,8 +432,9 @@ private fun SwipeableConversationRow(
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.graphicsLayer {
-                        alpha = travel
-                        translationX = (1f - travel) * 36.dp.toPx()
+                        val t = travel()
+                        alpha = t
+                        translationX = (1f - t) * 36.dp.toPx()
                     },
                 ) {
                     /*
@@ -436,7 +470,7 @@ private fun SwipeableConversationRow(
                                      * 19.5/26 is where that bar ends on the shared grid.
                                      */
                                     transformOrigin = TransformOrigin(0.8f, 0.3833f)
-                                    rotationZ = lidRotation
+                                    rotationZ = lidRotation()
                                 },
                         )
                     }

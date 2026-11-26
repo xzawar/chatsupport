@@ -1,6 +1,7 @@
 package com.codexce.supportchat.ui.theme
 
 import androidx.compose.animation.core.AnimationSpec
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -154,10 +155,23 @@ object Motion {
      */
     const val PAGE_DEFER_MILLIS = 100
 
-    val fastFloat: AnimationSpec<Float> = tween(FAST_MILLIS)
-    val tabFloat: AnimationSpec<Float> = tween(TAB_MILLIS)
-    val standardFloat: AnimationSpec<Float> = tween(STANDARD_MILLIS)
-    val standardOffset: AnimationSpec<IntOffset> = tween(STANDARD_MILLIS)
+    /*
+     * The three calm curves. UI chrome never bounces: things arriving decelerate long and land
+     * softly, things leaving accelerate away, and plain property changes use the standard curve.
+     * Overshoot is reserved for a completed moment (a reward, a success), never for navigation.
+     */
+    val EaseStandard = CubicBezierEasing(0.25f, 0f, 0.5f, 1f)
+    val EaseEnter = CubicBezierEasing(0.3f, 0f, 0.1f, 1f)
+    val EaseExit = CubicBezierEasing(0.9f, 0f, 0.7f, 1f)
+    val EaseOvershoot = CubicBezierEasing(0.34f, 1.56f, 0.64f, 1f)
+
+    /** Sheets and big surfaces arriving or leaving. */
+    const val SURFACE_MILLIS = 450
+
+    val fastFloat: AnimationSpec<Float> = tween(FAST_MILLIS, easing = EaseStandard)
+    val tabFloat: AnimationSpec<Float> = tween(TAB_MILLIS, easing = EaseStandard)
+    val standardFloat: AnimationSpec<Float> = tween(STANDARD_MILLIS, easing = EaseStandard)
+    val standardOffset: AnimationSpec<IntOffset> = tween(STANDARD_MILLIS, easing = EaseStandard)
 
     val indicatorSpring: AnimationSpec<Float> = spring(
         dampingRatio = Spring.DampingRatioNoBouncy,

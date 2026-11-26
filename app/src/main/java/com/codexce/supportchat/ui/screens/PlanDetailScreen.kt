@@ -2,6 +2,11 @@
 
 package com.codexce.supportchat.ui.screens
 
+import com.codexce.supportchat.ui.components.responsiveContent
+import com.codexce.supportchat.ui.theme.SupportType
+import com.codexce.supportchat.ui.components.PrimaryButton
+import com.codexce.supportchat.ui.theme.PillShape
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -102,7 +107,7 @@ fun PlanDetailScreen(
         Column(
             Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(rememberScrollState()).responsiveContent()
                 .padding(
                     PaddingValues(
                         top = padding.calculateTopPadding() + 8.dp,
@@ -126,10 +131,10 @@ fun PlanDetailScreen(
                 )
                 Spacer(Modifier.height(12.dp))
                 Row(verticalAlignment = Alignment.Bottom) {
+                    // The number is the hero of this screen: display.number, tabular figures.
                     Text(
                         text = plan.priceLabel,
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
+                        style = SupportType.displayNumber.copy(fontFeatureSettings = "tnum"),
                     )
                     if (plan.priceCents > 0L) {
                         Spacer(Modifier.width(6.dp))
@@ -208,8 +213,9 @@ fun PlanDetailScreen(
                         colors = supportButtonColors(),
                         onClick = debounced { viewModel.applyCoupon(planId) },
                         enabled = !anyBusy && coupon.isNotBlank(),
-                        shape = RoundedCornerShape(26.dp),
-                        modifier = Modifier.height(50.dp),
+                        shape = PillShape,
+                        elevation = null,
+                        modifier = Modifier.heightIn(min = 52.dp),
                     ) {
                         if (busy) {
                             CircularProgressIndicator(
@@ -243,27 +249,12 @@ fun PlanDetailScreen(
 
             // The commitment, last, after the detail and after the coupon.
             Column(Modifier.padding(horizontal = 16.dp)) {
-                Button(
-                    colors = supportButtonColors(),
-                    onClick = debounced { viewModel.checkout(planId) },
+                PrimaryButton(
+                    text = if (isCurrent) "Your current plan" else "Subscribe",
+                    onClick = { viewModel.checkout(planId) },
                     enabled = !anyBusy && !isCurrent,
-                    shape = RoundedCornerShape(26.dp),
-                    modifier = Modifier.fillMaxWidth().height(52.dp),
-                ) {
-                    if (busy) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.onPrimary,
-                        )
-                    } else {
-                        Text(
-                            text = if (isCurrent) "Current plan" else "Subscribe",
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                    }
-                }
+                    loading = busy,
+                )
                 Spacer(Modifier.height(10.dp))
                 Text(
                     text = "Payments are handled by our own billing service. Card details are " +

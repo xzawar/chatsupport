@@ -2,6 +2,10 @@
 
 package com.codexce.supportchat.ui.screens
 
+import com.codexce.supportchat.ui.components.responsiveContent
+import com.codexce.supportchat.ui.theme.supportFieldColors
+import androidx.compose.foundation.shape.RoundedCornerShape
+import com.codexce.supportchat.ui.components.SecondaryButton
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -190,7 +194,7 @@ fun LinkWebsiteScreen(
             Modifier
                 .fillMaxSize()
                 .padding(insets)
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(rememberScrollState()).responsiveContent(),
         ) {
             error?.let { message ->
                 ErrorBanner(message = message, onDismiss = { error = null })
@@ -235,6 +239,7 @@ fun LinkWebsiteScreen(
                         enabled = !working && !hasActiveSite,
                         modifier = Modifier.fillMaxWidth(),
                         shape = MaterialTheme.shapes.medium,
+                        colors = supportFieldColors(),
                     )
                     Spacer(Modifier.padding(top = 12.dp))
                     Button(
@@ -299,11 +304,11 @@ fun LinkWebsiteScreen(
                         }
                     }
                     Spacer(Modifier.padding(top = 8.dp))
-                    OutlinedButton(
-                        onClick = debounced { scanSession() },
+                    SecondaryButton(
+                        text = "Scan a site QR code",
+                        onClick = { scanSession() },
                         enabled = !working && !hasActiveSite,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) { Text("Scan a site QR code") }
+                    )
                     pairingNote?.let { note ->
                         Spacer(Modifier.padding(top = 8.dp))
                         Text(

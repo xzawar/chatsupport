@@ -77,8 +77,9 @@ fun MainTabsScreen(
     LaunchedEffect(pagerState.targetPage) { selectedTab = pagerState.targetPage }
 
     val systemBarInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-    // Content clearance is the pill height plus the gesture inset, so nothing hides behind it.
-    val tabBarClearance = TabBarHeight + systemBarInset + 24.dp
+    // Content clearance is the docked bar plus the gesture inset under it, so the last row of
+    // every list scrolls fully clear of the bar.
+    val tabBarClearance = TabBarHeight + systemBarInset + 8.dp
 
     Box(Modifier.fillMaxSize()) {
         HorizontalPager(
@@ -124,7 +125,7 @@ fun MainTabsScreen(
                     // the "nothing to show" screen and not a lock.
                     ComingSoonScreen(
                         title = "Social",
-                        subtitle = "You are subscribed to this service.",
+                        subtitle = "It's part of your plan. We'll let you know when it's live.",
                         bottomPadding = tabBarClearance,
                     )
                 } else {
@@ -145,9 +146,8 @@ fun MainTabsScreen(
                     scope.launch { pagerState.scrollToPage(index) }
                 }
             },
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = systemBarInset + 16.dp),
+            // Docked: the bar paints under the gesture inset itself (navigationBarsPadding inside).
+            modifier = Modifier.align(Alignment.BottomCenter),
         )
     }
 }
