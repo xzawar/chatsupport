@@ -47,12 +47,25 @@ real owner would notice immediately because their own writes would start failing
 
 ## Testing the rules
 
-The rules are written to be exercised with the emulator, which does not need Blaze:
+Two suites, both run in CI on every change to the rules or `functions/`
+(`.github/workflows/backend.yml`):
 
 ```
-firebase emulators:start --only auth,firestore,database
+cd functions && npm ci
+npm test                 # offline: Node only, seconds
+npm run test:emulator    # the real rules engine: needs Java 11+, no Firebase login
 ```
 
-The cases worth asserting are cross-tenant reads, a visitor writing someone else's conversation,
-a second website creation, a second coupon redemption, and a plain client write anywhere outside
-`chats/{tenantId}`. None of those were run in the environment that produced this change.
+- **`npm run test:emulator`** is authoritative. It runs `test/rules.emulator.test.js` against the
+  Firestore and Realtime Database emulators under a `demo-` project id, starting every case from a
+  freshly seeded database. Every Firestore rule has an allowed case and a refused case: owner vs
+  another owner vs visitor vs signed-out, cross-tenant reads, a second tenant or website, a typed
+  email claiming verification, a second coupon redemption, a used or expired link code, and
+  writes to unnamed collections.
+- **`npm test`** re-checks the Realtime Database cases with an offline evaluator and pins down the
+  shape of the Firestore rules (exact collection inventory, exact signed-out surface, no listing
+  of capability collections, no client deletes of records that must survive, no custom claims).
+
+The Realtime Database cases live in one table, `functions/test/rtdb-cases.js`, which both suites
+run, so the offline evaluator cannot quietly drift from the real engine. When a rule changes on
+purpose, change the matching case in the same commit.
