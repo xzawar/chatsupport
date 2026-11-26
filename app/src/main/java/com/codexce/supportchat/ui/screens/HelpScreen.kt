@@ -2,6 +2,7 @@
 
 package com.codexce.supportchat.ui.screens
 
+import com.codexce.supportchat.ui.components.responsiveContent
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.Image
@@ -110,7 +111,7 @@ fun HelpScreen(onBack: () -> Unit) {
             Modifier
                 .fillMaxSize()
                 .padding(insets)
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(rememberScrollState()).responsiveContent(),
         ) {
             Column(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 28.dp),

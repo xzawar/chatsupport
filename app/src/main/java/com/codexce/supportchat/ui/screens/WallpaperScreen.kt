@@ -2,6 +2,7 @@
 
 package com.codexce.supportchat.ui.screens
 
+import com.codexce.supportchat.ui.components.SecondaryButton
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -143,12 +144,11 @@ fun WallpaperScreen(
             }
 
             Column(Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
-                OutlinedButton(
-                    onClick = debounced { picker.launch(arrayOf("image/*")) },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text("Choose from gallery")
-                }
+                SecondaryButton(
+                    text = "Choose from gallery",
+                    onClick = { picker.launch(arrayOf("image/*")) },
+                    icon = AppIcons.Image,
+                )
                 Spacer(Modifier.height(10.dp))
                 Text(
                     text = "The wallpaper sits behind the message bubbles in a conversation and " +

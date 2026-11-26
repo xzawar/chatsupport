@@ -1,5 +1,6 @@
 package com.codexce.supportchat.ui.screens
 
+import com.codexce.supportchat.ui.components.responsiveContent
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -46,7 +47,7 @@ import com.codexce.supportchat.ui.components.PlainRow
 import com.codexce.supportchat.ui.components.StatusPill
 import com.codexce.supportchat.ui.components.debounced
 import com.codexce.supportchat.ui.theme.GroupedCardShape
-import com.codexce.supportchat.ui.theme.TgRedDark
+import com.codexce.supportchat.ui.theme.SupportTheme
 import com.codexce.supportchat.viewmodel.ConversationViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -96,7 +97,7 @@ fun VisitorProfileScreen(
         Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .verticalScroll(rememberScrollState()),
+            .verticalScroll(rememberScrollState()).responsiveContent(),
     ) {
         // No header at all, not even a back arrow: the Chat chip below already returns to the
         // conversation, and two controls doing one job is one too many.
@@ -175,7 +176,7 @@ fun VisitorProfileScreen(
                 icon = AppIcons.SaveBookmark,
                 label = if (conversation.keepChat) "Kept" else "Keep",
                 tint = if (conversation.keepChat) {
-                    SavedAmber
+                    MaterialTheme.colorScheme.primary
                 } else {
                     MaterialTheme.colorScheme.onSurfaceVariant
                 },
@@ -185,7 +186,7 @@ fun VisitorProfileScreen(
                 icon = if (conversation.isClosed) AppIcons.Lock else AppIcons.Unlock,
                 label = if (conversation.isClosed) "Unlock" else "Lock",
                 tint = if (conversation.isClosed) {
-                    TgRedDark
+                    SupportTheme.colors.negative.content
                 } else {
                     MaterialTheme.colorScheme.onSurfaceVariant
                 },
@@ -304,5 +305,3 @@ private fun formatFullDate(epochMillis: Long): String {
     return SimpleDateFormat("d MMM yyyy, HH:mm", Locale.getDefault()).format(Date(epochMillis))
 }
 
-// Matches the saved-state amber used by the save glyph elsewhere.
-private val SavedAmber = Color(0xFFF5C518)

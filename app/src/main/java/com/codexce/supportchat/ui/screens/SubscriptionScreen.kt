@@ -1,5 +1,6 @@
 package com.codexce.supportchat.ui.screens
 
+import com.codexce.supportchat.ui.components.SecondaryButton
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -101,7 +102,7 @@ fun SubscriptionScreen(
                         title = "No plans available",
                         message = state.loadError ?: "Nothing came back from the server.",
                         action = {
-                            OutlinedButton(onClick = debounced(viewModel::load)) { Text("Try again") }
+                            SecondaryButton(text = "Try again", onClick = viewModel::load)
                         },
                     )
                 }
@@ -276,23 +277,14 @@ private fun PlanRowCard(
          * know what they are discounting.
          */
         if (!isCurrent) {
-            Button(
-                colors = supportButtonColors(),
-                onClick = debounced(onChoose),
+            // Secondary, not primary: a list of plans would otherwise put an accent button on
+            // every card. The single primary is the checkout on the plan's own page.
+            SecondaryButton(
+                text = "Choose plan",
+                onClick = onChoose,
                 enabled = !anyBusy,
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier.fillMaxWidth().height(46.dp),
-            ) {
-                if (busy) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(16.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.onPrimary,
-                    )
-                } else {
-                    Text("Subscribe", fontWeight = FontWeight.SemiBold)
-                }
-            }
+                loading = busy,
+            )
         }
 
         if (error != null) {

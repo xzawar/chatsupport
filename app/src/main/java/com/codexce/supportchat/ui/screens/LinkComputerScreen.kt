@@ -2,6 +2,7 @@
 
 package com.codexce.supportchat.ui.screens
 
+import com.codexce.supportchat.ui.components.responsiveContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -235,7 +236,7 @@ fun LinkComputerScreen(onBack: () -> Unit) {
             Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(rememberScrollState()).responsiveContent()
                 .padding(horizontal = 20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {

@@ -31,7 +31,7 @@ fun InboxFilters(
 ) {
     LazyRow(
         modifier = modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         items(items = InboxFilter.entries, key = { it.name }) { filter ->
@@ -47,25 +47,14 @@ fun InboxFilters(
                     )
                 },
                 shape = CircleShape,
+                // Neutral tint at rest, ink when selected: no outlines, separation by tint.
                 colors = FilterChipDefaults.filterChipColors(
-                    // A solid brand fill with a white label. The soft tinted version that was
-                    // here before left dark text on a pale blue chip, which in light mode read
-                    // almost the same as an unselected chip - you could not tell at a glance
-                    // which queue you were looking at. Solid fill plus white text is
-                    // unambiguous, and it is the same pairing every other filled control in
-                    // the app uses.
                     selectedContainerColor = MaterialTheme.colorScheme.primary,
-                    selectedLabelColor = androidx.compose.ui.graphics.Color.White,
-                    containerColor = Color.Transparent,
-                    labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    selectedLabelColor = MaterialTheme.colorScheme.onPrimary,
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                    labelColor = MaterialTheme.colorScheme.onSurface,
                 ),
-                // Unselected chips are an outline on the page itself, so the row keeps almost
-                // no visual weight until something is actually filtered.
-                border = if (isSelected) {
-                    null
-                } else {
-                    BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-                },
+                border = null,
             )
         }
     }

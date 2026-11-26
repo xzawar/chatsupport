@@ -2,6 +2,12 @@
 
 package com.codexce.supportchat.ui.screens
 
+import com.codexce.supportchat.ui.components.responsiveContent
+import com.codexce.supportchat.ui.theme.Spacing
+import com.codexce.supportchat.ui.theme.PillShape
+import com.codexce.supportchat.ui.theme.SupportTheme
+import com.codexce.supportchat.ui.theme.SupportType
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -208,7 +214,7 @@ fun SettingsScreen(
             Modifier
                 .fillMaxSize()
                 .padding(insets)
-                .verticalScroll(scroll),
+                .verticalScroll(scroll).responsiveContent(),
         ) {
             /*
              * The collapsing profile header.
@@ -242,7 +248,7 @@ fun SettingsScreen(
                 Text(
                     text = headerName,
                     style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onBackground,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -452,23 +458,28 @@ fun SettingsScreen(
             }
 
             Spacer(Modifier.height(24.dp))
+            // Secondary-negative: pale negative surface, negative text. Findable, not alarming;
+            // a solid red fill is for confirming something irreversible, which this is not.
             Button(
                 onClick = debounced(onSignOut),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
+                    .padding(horizontal = Spacing.gutter)
+                    .heightIn(min = Spacing.buttonHeight),
+                shape = PillShape,
+                elevation = null,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = TintRed,
-                    contentColor = Color.White,
+                    containerColor = SupportTheme.colors.negative.surface,
+                    contentColor = SupportTheme.colors.negative.content,
                 ),
             ) {
                 Icon(
-                    painter = painterResource(AppIcons.LogoutSolid),
+                    painter = painterResource(AppIcons.Logout),
                     contentDescription = null,
-                    modifier = Modifier.size(18.dp),
+                    modifier = Modifier.size(20.dp),
                 )
                 Spacer(Modifier.width(8.dp))
-                Text("Sign out")
+                Text("Sign out", style = SupportType.largeBodyBold)
             }
 
             Text(

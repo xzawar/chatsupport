@@ -2,6 +2,10 @@
 
 package com.codexce.supportchat.ui.screens
 
+import com.codexce.supportchat.ui.components.responsiveContent
+import com.codexce.supportchat.ui.components.PrimaryButton
+import com.codexce.supportchat.ui.components.TertiaryButton
+import com.codexce.supportchat.ui.theme.Spacing
 import android.Manifest
 import android.content.Context
 import android.os.Build
@@ -104,7 +108,7 @@ fun PermissionsScreen(
         Column(
             Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(rememberScrollState()).responsiveContent(),
         ) {
             Spacer(Modifier.height(48.dp))
 
@@ -172,25 +176,17 @@ fun PermissionsScreen(
 
             Spacer(Modifier.height(28.dp))
 
-            Button(
-                colors = supportButtonColors(),
-                onClick = debounced(onDone),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
-                    .height(52.dp),
-            ) {
-                Text(if (notificationsGranted && batteryExempt) "Done" else "Continue anyway")
-            }
-
-            TextButton(
-                onClick = debounced(onDone),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp),
-            ) {
-                Text("Remind me later")
-            }
+            PrimaryButton(
+                text = if (notificationsGranted && batteryExempt) "Done" else "Continue anyway",
+                onClick = onDone,
+                modifier = Modifier.padding(horizontal = Spacing.gutter),
+            )
+            Spacer(Modifier.height(Spacing.betweenText))
+            TertiaryButton(
+                text = "Remind me later",
+                onClick = onDone,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.gutter),
+            )
 
             Spacer(Modifier.height(32.dp))
         }

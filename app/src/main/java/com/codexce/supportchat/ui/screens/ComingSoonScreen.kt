@@ -2,6 +2,13 @@
 
 package com.codexce.supportchat.ui.screens
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import com.codexce.supportchat.ui.theme.Motion
+import com.codexce.supportchat.ui.theme.SupportType
 import androidx.compose.foundation.Image
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -84,25 +91,20 @@ fun ComingSoonScreen(
             // than every page showing the same picture.
             SphereCluster(seed = title)
             Spacer(Modifier.height(32.dp))
+            // The screen's one display moment: heavy caps, set tight.
             Text(
-                text = "Nothing to show yet",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
+                text = "COMING SOON",
+                style = SupportType.display,
+                color = MaterialTheme.colorScheme.onBackground,
                 textAlign = TextAlign.Center,
             )
             Spacer(Modifier.height(8.dp))
             Text(
                 text = subtitle
-                    ?: "Your recently viewed boards, docs and dashboards will be shown here.",
+                    ?: "We're building this for you. It'll appear here when it's ready.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
-            )
-            Spacer(Modifier.height(20.dp))
-            Text(
-                text = title.uppercase(),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
             )
         }
     }
@@ -136,37 +138,22 @@ fun SphereCluster(seed: String, modifier: Modifier = Modifier) {
     val start = (seed.hashCode().absoluteValue) % Spheres.size
     val trio = List(3) { Spheres[(start + it * 5) % Spheres.size] }
 
-    // Each sphere bobs on its own clock (different durations and delays, so they drift out of
-    // phase), which is what makes the group read as alive rather than as three static pictures.
-    val transition = rememberInfiniteTransition(label = "sphereBob")
-    val bobLeft by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = -7f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1500, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "bobLeft",
-    )
-    val bobCenter by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = -12f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1900, delayMillis = 250, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "bobCenter",
-    )
-    val bobRight by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = -9f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2300, delayMillis = 500, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "bobRight",
-    )
-
+    /*
+     * One settle on arrival, then still. These used to bob on three infinite clocks, which kept
+     * the frame loop running for as long as the tab existed - including while it sat composed
+     * off-screen next to the visible pager page. A resting screen should not animate: the
+     * spheres now rise into place once, staggered, on the enter curve, and the values are read
+     * in the layout phase only so nothing recomposes while they move.
+     */
+    val rise = remember { List(3) { Animatable(14f) } }
+    LaunchedEffect(Unit) {
+        rise.forEachIndexed { i, a ->
+            launch {
+                delay(i * 80L)
+                a.animateTo(0f, tween(Motion.SURFACE_MILLIS + 150, easing = Motion.EaseEnter))
+            }
+        }
+    }
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.Center,
@@ -178,14 +165,14 @@ fun SphereCluster(seed: String, modifier: Modifier = Modifier) {
             modifier = Modifier
                 .size(56.dp)
                 .offset(x = 10.dp, y = (-10).dp)
-                .offset { IntOffset(0, bobLeft.dp.roundToPx()) },
+                .offset { IntOffset(0, rise[1].value.dp.roundToPx()) },
         )
         Image(
             painter = painterResource(trio[0]),
             contentDescription = null,
             modifier = Modifier
                 .size(112.dp)
-                .offset { IntOffset(0, bobCenter.dp.roundToPx()) },
+                .offset { IntOffset(0, rise[0].value.dp.roundToPx()) },
         )
         Image(
             painter = painterResource(trio[2]),
@@ -193,7 +180,7 @@ fun SphereCluster(seed: String, modifier: Modifier = Modifier) {
             modifier = Modifier
                 .size(72.dp)
                 .offset(x = (-12).dp, y = (-6).dp)
-                .offset { IntOffset(0, bobRight.dp.roundToPx()) },
+                .offset { IntOffset(0, rise[2].value.dp.roundToPx()) },
         )
     }
 }

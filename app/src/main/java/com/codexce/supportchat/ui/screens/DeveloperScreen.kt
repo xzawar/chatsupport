@@ -2,6 +2,9 @@
 
 package com.codexce.supportchat.ui.screens
 
+import com.codexce.supportchat.ui.components.responsiveContent
+import com.codexce.supportchat.ui.theme.supportFieldColors
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -83,7 +86,7 @@ fun DeveloperScreen(
             Modifier
                 .fillMaxSize()
                 .padding(insets)
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(rememberScrollState()).responsiveContent(),
         ) {
             GroupGap()
             Column(
@@ -148,6 +151,7 @@ fun DeveloperScreen(
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                         shape = MaterialTheme.shapes.medium,
+                        colors = supportFieldColors(),
                     )
                     Spacer(Modifier.padding(top = 12.dp))
                     Button(

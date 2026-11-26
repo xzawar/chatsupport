@@ -2,6 +2,11 @@
 
 package com.codexce.supportchat.ui.screens
 
+import com.codexce.supportchat.ui.components.responsiveContent
+import com.codexce.supportchat.ui.theme.supportFieldColors
+import androidx.compose.foundation.shape.RoundedCornerShape
+import com.codexce.supportchat.ui.components.PrimaryButton
+import com.codexce.supportchat.ui.components.NeutralButton
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -187,7 +192,7 @@ fun AccountScreen(
             Modifier
                 .fillMaxSize()
                 .padding(insets)
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(rememberScrollState()).responsiveContent(),
         ) {
             auth.error?.let { message ->
                 ErrorBanner(message = message, onDismiss = authViewModel::clearError)
@@ -239,7 +244,7 @@ private fun SignInCard(
         Text(
             text = "Sign in",
             style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
+            fontWeight = FontWeight.SemiBold,
         )
         Spacer(Modifier.padding(top = 6.dp))
         Text(
@@ -262,6 +267,8 @@ private fun SignInCard(
                 imeAction = ImeAction.Next,
             ),
             shape = MaterialTheme.shapes.medium,
+
+            colors = supportFieldColors(),
         )
         Spacer(Modifier.padding(top = 12.dp))
         OutlinedTextField(
@@ -277,24 +284,15 @@ private fun SignInCard(
                 imeAction = ImeAction.Done,
             ),
             shape = MaterialTheme.shapes.medium,
+            colors = supportFieldColors(),
         )
         Spacer(Modifier.padding(top = 20.dp))
-        Button(
-            colors = supportButtonColors(),
-            onClick = debounced { onSubmit(email, password) },
-            modifier = Modifier.fillMaxWidth(),
-            enabled = !submitting && email.isNotBlank() && password.isNotBlank(),
-        ) {
-            if (submitting) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(18.dp),
-                    strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.onPrimary,
-                )
-            } else {
-                Text("Sign in")
-            }
-        }
+        PrimaryButton(
+            text = "Sign in",
+            onClick = { onSubmit(email, password) },
+            enabled = email.isNotBlank() && password.isNotBlank(),
+            loading = submitting,
+        )
 
         Spacer(Modifier.padding(top = 20.dp))
         Row(
@@ -312,14 +310,11 @@ private fun SignInCard(
         }
         Spacer(Modifier.padding(top = 20.dp))
 
-        OutlinedButton(
-            onClick = debounced(onGoogle),
-            modifier = Modifier.fillMaxWidth(),
+        NeutralButton(
+            text = "Continue with Google",
+            onClick = onGoogle,
             enabled = !submitting,
-            shape = MaterialTheme.shapes.medium,
-        ) {
-            Text("Continue with Google")
-        }
+        )
 
         Spacer(Modifier.padding(top = 12.dp))
         Text(
@@ -814,6 +809,8 @@ private fun SignedInSection(
                                 singleLine = true,
                                 label = { Text("Type DELETE to confirm") },
                                 modifier = Modifier.fillMaxWidth(),
+                                colors = supportFieldColors(),
+                                shape = RoundedCornerShape(16.dp),
                             )
                             deletionError?.let {
                                 Spacer(Modifier.size(10.dp))
@@ -889,5 +886,6 @@ private fun EditField(
             imeAction = ImeAction.Next,
         ),
         shape = MaterialTheme.shapes.medium,
+        colors = supportFieldColors(),
     )
 }

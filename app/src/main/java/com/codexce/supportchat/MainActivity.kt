@@ -58,7 +58,7 @@ class MainActivity : ComponentActivity() {
      *
      * The colours are literals rather than R.color.window_background on purpose: resolving that
      * resource goes through the -night qualifier, which is the thing being overridden. Reading
-     * it here would hand back the value we are trying not to use. They match TgBlack and the
+     * it here would hand back the value we are trying not to use. They match WindowBackgroundDark and the
      * light scheme background in Color.kt; if either changes, change these with it.
      */
     private fun applyStoredNightMode(dark: Boolean) {
@@ -73,7 +73,7 @@ class MainActivity : ComponentActivity() {
         }
 
         window.setBackgroundDrawable(
-            ColorDrawable(if (dark) 0xFF000000.toInt() else 0xFFFFFFFF.toInt()),
+            ColorDrawable(if (dark) 0xFF111416.toInt() else 0xFFFFFFFF.toInt()),
         )
     }
 

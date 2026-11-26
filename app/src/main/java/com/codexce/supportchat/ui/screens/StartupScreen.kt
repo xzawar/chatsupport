@@ -20,7 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
-import com.codexce.supportchat.ui.theme.IconBlue
+import com.codexce.supportchat.ui.theme.BrandAccent
 
 /*
  * Cold start.
@@ -104,10 +104,9 @@ private fun IndeterminateBar(modifier: Modifier = Modifier) {
                     translationX = progress * trackWidth.toPx()
                 }
                 .clip(RoundedCornerShape(percent = 50))
-                // The launcher icon's blue, not the UI accent. This bar is the first thing drawn
-                // after the system splash hands over, so it continues the icon rather than
-                // introducing the accent a moment early.
-                .background(IconBlue),
+                // The brand accent, which is the launcher icon's sky blue: the first thing drawn
+                // after the system splash hands over continues the icon.
+                .background(BrandAccent),
         )
     }
 }

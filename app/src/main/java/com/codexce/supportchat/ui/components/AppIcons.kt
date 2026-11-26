@@ -175,4 +175,6 @@ object AppIcons {
     /* The bin split in two so the lid can hinge independently of the body. */
     val DeleteLid = R.drawable.ic_delete_lid
     val DeleteBody = R.drawable.ic_delete_body
+    val AlertCircle = R.drawable.ic_alert_circle_fill
+    val InfoCircle = R.drawable.ic_info_circle_fill
 }

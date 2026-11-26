@@ -598,7 +598,7 @@ private val TRAVEL_RADIUS = 22.dp
 private fun slideSpec() = tween<androidx.compose.ui.unit.IntOffset>(
     durationMillis = Motion.PAGE_MILLIS,
     delayMillis = Motion.PAGE_DEFER_MILLIS,
-    easing = FastOutSlowInEasing,
+    easing = Motion.EaseEnter,
 )
 
 /*
@@ -620,7 +620,7 @@ private fun slideSpec() = tween<androidx.compose.ui.unit.IntOffset>(
 private fun popSlideSpec() = tween<androidx.compose.ui.unit.IntOffset>(
     durationMillis = Motion.PAGE_MILLIS,
     delayMillis = Motion.PAGE_DEFER_MILLIS,
-    easing = FastOutSlowInEasing,
+    easing = Motion.EaseEnter,
 )
 
 /** Pop counterpart of [parkEnter]: the screen underneath walking back to rest. */

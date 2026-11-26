@@ -1,5 +1,9 @@
 package com.codexce.supportchat.ui.components
 
+import androidx.compose.ui.graphics.lerp
+import com.codexce.supportchat.ui.theme.SupportTheme
+import com.codexce.supportchat.ui.theme.InterFamily
+import androidx.compose.runtime.remember
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
@@ -73,6 +77,24 @@ object AvatarPalette {
     }
 
     /**
+     * The in-app rendering of [discFor]: a pale tint of the disc with the deep disc colour as the
+     * letter in light mode, and the inverse in dark mode.
+     *
+     * The seeded hue still tells two visitors apart, but at sentiment-surface chroma rather than
+     * as twelve saturated discs competing down the inbox: on a calm screen the only saturated
+     * fill is the accent. Notifications keep [discFor] with a white letter, because the tray
+     * draws on unknown backgrounds and needs the solid disc.
+     */
+    fun tintFor(key: String, light: Boolean): Pair<Color, Color> {
+        val disc = discFor(key)
+        return if (light) {
+            lerp(disc, Color.White, 0.84f) to disc
+        } else {
+            lerp(disc, Color(0xFF111416), 0.62f) to lerp(disc, Color.White, 0.72f)
+        }
+    }
+
+    /**
      * The single letter to draw, following the order documented above.
      *
      * Leading whitespace is trimmed first, because a name of " " would otherwise produce a blank
@@ -111,20 +133,24 @@ fun PersonAvatar(
         return
     }
     val key = seed.ifBlank { email.orEmpty().ifBlank { name.orEmpty() } }
+    val light = SupportTheme.colors.isLight
+    val (disc, ink) = remember(key, light) { AvatarPalette.tintFor(key, light) }
+    val letter = remember(name, email) { AvatarPalette.letterFor(name, email) }
     Box(
         modifier = modifier
             .size(size)
             .clip(CircleShape)
-            .background(AvatarPalette.discFor(key)),
+            .background(disc),
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            text = AvatarPalette.letterFor(name, email),
+            text = letter,
             // Sized off the disc rather than a fixed style, so a 32dp row avatar and an 84dp
             // profile header hold the same optical weight instead of one looking half empty.
             fontSize = (size.value * 0.42f).sp,
             fontWeight = FontWeight.SemiBold,
-            color = Color.White,
+            fontFamily = InterFamily,
+            color = ink,
         )
         /*
          * Drawn over the letter, not instead of it. Coil leaves the box empty while the request

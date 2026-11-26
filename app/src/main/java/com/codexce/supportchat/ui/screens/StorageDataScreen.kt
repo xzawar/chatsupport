@@ -2,6 +2,7 @@
 
 package com.codexce.supportchat.ui.screens
 
+import com.codexce.supportchat.ui.components.responsiveContent
 import android.content.Context
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -92,7 +93,7 @@ fun StorageDataScreen(
             Modifier
                 .fillMaxSize()
                 .padding(insets)
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(rememberScrollState()).responsiveContent(),
         ) {
             GroupGap()
             SettingsGroup {

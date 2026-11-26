@@ -2,235 +2,245 @@ package com.codexce.supportchat.ui.theme
 
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 
 /*
- * Phase 10 - the reference restyle.
+ * Calm-fintech colour system ("Neptune" structure), applied to this app's own brand.
  *
- * The dark appearance is no longer the WhatsApp near-black. It is a true-black page with a
- * single lifted card colour on top of it, which is the structure the reference app uses:
+ * The structure follows the design DNA in the Wise extraction: one bright accent per screen,
+ * a deep same-hue ink for anything printed on top of it, near-black content, tinted neutrals,
+ * and five sentiments. Colour is a ROLE, never a decoration: screens pick a token from
+ * MaterialTheme.colorScheme or SupportTheme.colors, never a hex.
  *
- *   #000000  the page. Nothing is drawn on this directly except cards and text.
- *   #181818  every card, top bar, bubble and the tab bar. One step, not a ramp.
- *   #1C1C1C  menus and dialogs, which float above cards and must separate from them.
- *   #272727  search pills, pressed rows, the tab bar's own fill.
+ * The brand is NOT Wise's. Their green pair is a proprietary asset; the four brand slots below
+ * use this app's launcher sky blue instead. Swapping the brand means editing these four values
+ * and nothing else:
  *
- * True black is not a style choice on OLED: the page pixels are switched off, so the cards read
- * as genuinely lifted rather than as a slightly different grey. It also means hairlines have to
- * be brighter than they were, because #222D34 on #0B141A was visible and the same line on
- * #181818 is not.
+ *   BrandAccent     the single bright fill: primary buttons, the "on" switch, progress
+ *   BrandControl    text and glyphs printed ON the accent (never white - see contrast below)
+ *   BrandInk        interactive text in light mode: links, selected tabs, text buttons
+ *   BrandInkSoft    the accent tint: secondary-button fill, outgoing chat bubble
  *
- * The accent is the reference blue rather than the launcher blue. See TgBlue below.
+ * Contrast (WCAG, computed):
+ *   BrandControl on BrandAccent      9.5:1     ContentPrimary on white      19.0:1
+ *   BrandInk on white               12.0:1     ContentSecondary on white     9.0:1
+ *   BrandInk on BrandInkSoft        10.6:1     ContentTertiary on white      5.1:1
+ *   Accent on dark screen           11.2:1     Dark primary text on screen  16.9:1
  *
- * The light appearance mirrors the same structure: a faintly grey page carrying white cards.
- * The recording only ever showed the light chat list, never light Settings, so the light card
- * structure is inferred from the dark one rather than copied. If it looks wrong it is this
- * decision that is wrong, and it is two constants.
- *
- * The legacy palette below has been cut down to the three names that still have call sites:
- * SkyLight, BrandFill and BrandDeep. The WhatsApp greys and the unused sky ramp shades were
- * deleted outright - they were dead from the moment the schemes stopped referencing them, and
- * an earlier version of this comment claimed WaSurface still had call sites when it had none.
+ * Surfaces are separated by tint, not by shadow or rule. The neutral fills are stored as
+ * opaque, pre-composited values rather than translucent ones: they paint in one pass with no
+ * alpha blend, and Material components that expect an opaque container (menus, dialogs, text
+ * fields) behave correctly.
  */
 
 // ---------------------------------------------------------------------------
-// Reference palette
+// Brand slots
 // ---------------------------------------------------------------------------
+
+val BrandAccent = Color(0xFF7FD4FF)
+val BrandControl = Color(0xFF05263B)
+val BrandInk = Color(0xFF0B3A57)
+val BrandInkSoft = Color(0xFFE3F4FF)
+
+/** The accent-tint in the dark appearance: a deep brand surface, carrying accent-coloured text. */
+private val BrandInkSoftDark = Color(0xFF123247)
+
+// ---------------------------------------------------------------------------
+// Neutrals. Faintly cool so they sit with the blue brand rather than against it.
+// ---------------------------------------------------------------------------
+
+private val ContentPrimaryLight = Color(0xFF0E1113)
+private val ContentSecondaryLight = Color(0xFF454A4E)
+private val ContentTertiaryLight = Color(0xFF6A6F74)
+
+private val ScreenLight = Color(0xFFFFFFFF)
+private val NeutralLight = Color(0xFFEEF2F5)        // grouped cards, inputs, avatars
+private val NeutralStrongLight = Color(0xFFE5EAEE)  // pressed rows, search pill on a neutral card
+private val NeutralStrongestLight = Color(0xFFDBE1E6)
+private val BorderLight = Color(0xFFE1E5E8)         // ink at 12% on white
+
+private val ContentPrimaryDark = Color(0xFFF2F5F7)
+private val ContentSecondaryDark = Color(0xFFC8CED3)
+private val ContentTertiaryDark = Color(0xFF9AA2A8)
+
+/** Never pure black: a blue-black, so the brand still reads in the dark appearance. */
+private val ScreenDark = Color(0xFF111416)
+private val ElevatedDark = Color(0xFF1D2124)        // dialogs, menus, sheets
+private val NeutralDark = Color(0xFF262A2D)         // white at ~10% on the screen
+private val NeutralStrongDark = Color(0xFF2F3438)
+private val NeutralStrongestDark = Color(0xFF3A3F43)
+private val BorderDark = Color(0xFF33383C)
+
+/** Window background colours, mirrored in res/values(-night)/colors.xml and MainActivity. */
+const val WindowBackgroundLight = 0xFFFFFFFF
+const val WindowBackgroundDark = 0xFF111416
+
+// ---------------------------------------------------------------------------
+// Sentiments. Pale surface + dark content, so the text always clears 4.5:1 on its own box.
+// Warning text is never yellow: yellow is a fill, the text is brown.
+// ---------------------------------------------------------------------------
+
+@Immutable
+data class Sentiment(
+    /** Text and glyphs that carry the sentiment. */
+    val content: Color,
+    /** Pale box behind a sentiment message. */
+    val surface: Color,
+    /** Solid fill for a loud, blocking banner or a destructive confirm. */
+    val strong: Color,
+    /** Content on [strong]. */
+    val onStrong: Color,
+)
 
 /**
- * The accent. FAB, links, active tab, switch tracks, badges, checkboxes, the whole lot.
+ * The roles Material's ColorScheme has no slot for.
  *
- * White clears 3.3:1 on this, which is below the 4.5:1 body-text bar and above the 3:1 bar for
- * large text and UI components. That is the same trade the reference app makes: this colour is
- * only ever a fill behind a glyph or a short button label, never behind a paragraph.
+ * Read through [SupportTheme.colors]. Everything Material does have a slot for still lives in
+ * MaterialTheme.colorScheme, so stock components keep working without wrappers.
  */
-val TgBlue = Color(0xFF3390EC)
+@Immutable
+data class SupportColors(
+    val accent: Color,
+    val onAccent: Color,
+    /** Secondary-button fill and the outgoing bubble. */
+    val accentSoft: Color,
+    val onAccentSoft: Color,
+    /** Timestamps, placeholders, hints. Below onSurfaceVariant, still above 4.5:1. */
+    val contentTertiary: Color,
+    /** Pressed and hovered overlay on any surface. */
+    val overlay: Color,
+    val negative: Sentiment,
+    val positive: Sentiment,
+    val warning: Sentiment,
+    val proposition: Sentiment,
+    val isLight: Boolean,
+)
 
-/** Pressed and hovered states of the accent. */
-val TgBluePressed = Color(0xFF2B7FD4)
+val LightSupportColors = SupportColors(
+    accent = BrandAccent,
+    onAccent = BrandControl,
+    accentSoft = BrandInkSoft,
+    onAccentSoft = BrandInk,
+    contentTertiary = ContentTertiaryLight,
+    overlay = Color(0x140B3A57),
+    negative = Sentiment(Color(0xFFCB272F), Color(0xFFFBEAEA), Color(0xFFCB272F), Color.White),
+    positive = Sentiment(Color(0xFF054D28), Color(0xFFE2F6D5), Color(0xFF054D28), Color(0xFFE2F6D5)),
+    warning = Sentiment(Color(0xFF4A3B1C), Color(0xFFFFF7D7), Color(0xFFFFD11A), Color(0xFF4A3B1C)),
+    proposition = Sentiment(Color(0xFF054D4D), Color(0xFFE0F7F7), Color(0xFF054D4D), Color.White),
+    isLight = true,
+)
 
-/**
- * The launcher icon's blue, under a name that says what it is for.
- *
- * It is the same value as [TgBluePressed] by coincidence rather than by design: the supplied
- * icon artwork happens to use the darker end of the same ramp. They are aliased instead of
- * duplicated so a future icon change only has to move one of them, but do not assume changing
- * this one is safe for pressed states, or the reverse.
- *
- * Used by the startup screen's loading bar, which sits directly under the launcher icon in the
- * cold-start sequence and would otherwise hand over from icon blue to an unrelated teal.
- */
-val IconBlue = TgBluePressed
+val DarkSupportColors = SupportColors(
+    accent = BrandAccent,
+    onAccent = BrandControl,
+    accentSoft = BrandInkSoftDark,
+    onAccentSoft = BrandAccent,
+    contentTertiary = ContentTertiaryDark,
+    overlay = Color(0x33FFFFFF),
+    negative = Sentiment(Color(0xFFFFA8AD), Color(0xFF410B0D), Color(0xFFFFA8AD), Color(0xFF410B0D)),
+    positive = Sentiment(Color(0xFFCEF1B8), Color(0xFF054D28), Color(0xFFBAE5A0), Color(0xFF252C20)),
+    warning = Sentiment(Color(0xFFFADC65), Color(0xFF3A3523), Color(0xFFFADC65), Color(0xFF3A3523)),
+    proposition = Sentiment(Color(0xFFE0F7F7), Color(0xFF054D4D), Color(0xFFE0F7F7), Color(0xFF0B312F)),
+    isLight = false,
+)
 
-/** The accent at rest on a dark page, for text and glyphs rather than fills. */
-val TgBlueLight = Color(0xFF62A8F0)
-
-/** The page. Switched-off pixels on OLED. */
-val TgBlack = Color(0xFF000000)
-
-/** Cards, top bars, bubbles. The only lifted surface on the dark page. */
-val TgCard = Color(0xFF181818)
-
-/** Menus and dialogs, which float above cards and need to separate from them. */
-val TgElevated = Color(0xFF1C1C1C)
-
-/** Search pills, pressed rows, the tab bar fill. */
-val TgPill = Color(0xFF272727)
-
-/** One step above the pill, for a selected row inside a menu. */
-val TgPillHigh = Color(0xFF2E2E2E)
-
-/** Subtitles, timestamps, placeholders, inactive tab glyphs. */
-val TgSecondary = Color(0xFF7B7B7B)
-
-/** Hairlines between rows inside a card. Brighter than the old ones: #181818 hides them. */
-val TgHairline = Color(0xFF262626)
-
-/** Destructive. Sign out, delete, the trailing swipe panel. */
-val TgRedDark = Color(0xFFEC4E4E)
-
-// Light mirrors of the above.
-
-/** The light page. Faintly grey so that white cards read as cards. */
-val TgLightPage = Color(0xFFF4F4F4)
-
-/** Light cards, top bars, bubbles. */
-val TgLightCard = Color(0xFFFFFFFF)
-
-/** Light search pills and pressed rows. */
-val TgLightPill = Color(0xFFEDEDED)
-
-/** Light secondary text. */
-val TgLightSecondary = Color(0xFF777777)
-
-/** Light hairlines. */
-val TgLightHairline = Color(0xFFE6E6E6)
-
-/** Light primary text. Not pure black: pure black on white vibrates at small sizes. */
-val TgInk = Color(0xFF0F0F0F)
-
-/** Light destructive. */
-val TgRedLight = Color(0xFFE14545)
+val LocalSupportColors = staticCompositionLocalOf { LightSupportColors }
 
 // ---------------------------------------------------------------------------
-// Legacy brand palette
-//
-// Not wired into either scheme. These three survive only because they still have call sites:
-// SkyLight and BrandFill in the launcher artwork and the web console, BrandDeep on white-label
-// fills. Anything added here that a scheme does not reference will be dead on arrival.
-// ---------------------------------------------------------------------------
-
-/** Top stop of the launcher gradient. */
-val SkyLight = Color(0xFF51C9FD)
-
-val PureWhite = Color(0xFFFFFFFF)
-
-/** Large solid brand fills. */
-val BrandFill = Color(0xFF69C5FF)
-
-/**
- * Brand fill for anything carrying a white text label.
- *
- * This was an alias for SkyShadow, the deepest shade of the old icon ramp. SkyShadow itself had
- * no remaining call sites, so the literal is inlined here rather than keeping a second name
- * alive purely to be aliased once.
- */
-val BrandDeep = Color(0xFF2F6F92)
-
-// ---------------------------------------------------------------------------
-// Schemes
+// Material schemes
 // ---------------------------------------------------------------------------
 
 /*
- * Token mapping, and why each one is what it is:
+ * Token mapping:
  *
- *   background              the page
- *   surface                 cards, top bars, bubbles - the single lifted step
- *   surfaceContainerLow     grouped Settings cards. Same value as surface on purpose: a card
- *                           on the page and a top bar on the page are the same height.
- *   surfaceContainer        dialogs and menus, one step up so they clear a card underneath
- *   surfaceContainerHigh    search pills, the tab bar, pressed rows
- *   surfaceContainerHighest a selected row inside a menu
- *   outlineVariant          hairlines inside a card
- *   outline                 the rare real border
- *   onSurfaceVariant        every subtitle and inactive glyph in the app
+ *   primary                 interactive text and glyphs: links, selected tab, text buttons,
+ *                           badges. Deep ink in light, the accent in dark.
+ *   primaryContainer        THE accent fill (primary button). onPrimaryContainer is the control
+ *                           ink that prints on it.
+ *   secondaryContainer      the soft accent tint (secondary button, outgoing bubble)
+ *   background / surface    the screen. App bars are the screen colour too.
+ *   surfaceContainerLow     neutral tint: grouped cards, list groups, info boxes
+ *   surfaceContainer        elevated: dialogs, menus. White in light, one step up in dark.
+ *   surfaceContainerHigh    search pills, incoming bubbles, pressed rows
+ *   surfaceTint             transparent, so tonal elevation never tints anything blue.
  */
 
 val LightColors = lightColorScheme(
-    primary = TgBlue,
-    onPrimary = PureWhite,
-    primaryContainer = TgBlue,
-    onPrimaryContainer = PureWhite,
-    inversePrimary = TgBlueLight,
-    secondary = TgBluePressed,
-    onSecondary = PureWhite,
-    secondaryContainer = Color(0xFFDCEBFB),
-    onSecondaryContainer = Color(0xFF0B3D66),
-    tertiary = TgBlue,
-    onTertiary = PureWhite,
-    tertiaryContainer = Color(0xFFDCEBFB),
-    onTertiaryContainer = Color(0xFF0B3D66),
-    background = TgLightPage,
-    onBackground = TgInk,
-    surface = TgLightCard,
-    onSurface = TgInk,
-    surfaceVariant = TgLightPill,
-    onSurfaceVariant = TgLightSecondary,
-    surfaceTint = TgBlue,
-    surfaceContainerLowest = TgLightCard,
-    surfaceContainerLow = TgLightCard,
-    surfaceContainer = TgLightCard,
-    surfaceContainerHigh = TgLightPill,
-    surfaceContainerHighest = Color(0xFFE4E4E4),
-    outline = Color(0xFFC9C9C9),
-    outlineVariant = TgLightHairline,
-    inverseSurface = Color(0xFF2B2B2B),
-    inverseOnSurface = PureWhite,
-    error = TgRedLight,
-    onError = PureWhite,
-    errorContainer = Color(0xFFFBE4E2),
-    onErrorContainer = Color(0xFF5C1610),
+    primary = BrandInk,
+    onPrimary = Color.White,
+    primaryContainer = BrandAccent,
+    onPrimaryContainer = BrandControl,
+    inversePrimary = BrandAccent,
+    secondary = BrandInk,
+    onSecondary = Color.White,
+    secondaryContainer = BrandInkSoft,
+    onSecondaryContainer = BrandInk,
+    tertiary = Color(0xFF054D4D),
+    onTertiary = Color.White,
+    tertiaryContainer = Color(0xFFE0F7F7),
+    onTertiaryContainer = Color(0xFF054D4D),
+    background = ScreenLight,
+    onBackground = ContentPrimaryLight,
+    surface = ScreenLight,
+    onSurface = ContentPrimaryLight,
+    surfaceVariant = NeutralLight,
+    onSurfaceVariant = ContentSecondaryLight,
+    surfaceTint = Color.Transparent,
+    surfaceBright = ScreenLight,
+    surfaceDim = NeutralStrongLight,
+    surfaceContainerLowest = ScreenLight,
+    surfaceContainerLow = NeutralLight,
+    surfaceContainer = ScreenLight,
+    surfaceContainerHigh = NeutralStrongLight,
+    surfaceContainerHighest = NeutralStrongestLight,
+    outline = Color(0xFFC3CACF),
+    outlineVariant = BorderLight,
+    inverseSurface = ElevatedDark,
+    inverseOnSurface = ContentPrimaryDark,
+    error = Color(0xFFCB272F),
+    onError = Color.White,
+    errorContainer = Color(0xFFFBEAEA),
+    onErrorContainer = Color(0xFF9B141B),
     scrim = Color(0xFF000000),
 )
 
 val DarkColors = darkColorScheme(
-    primary = TgBlue,
-    /*
-     * White on the accent in both appearances. One answer rather than a per-screen theme check,
-     * and it is what the reference does: the active tab glyph, the FAB glyph and the checkbox
-     * tick are all white on #3390EC.
-     */
-    onPrimary = PureWhite,
-    primaryContainer = TgBlue,
-    onPrimaryContainer = PureWhite,
-    inversePrimary = TgBlue,
-    secondary = TgBlueLight,
-    onSecondary = TgBlack,
-    secondaryContainer = Color(0xFF1B3F63),
-    onSecondaryContainer = PureWhite,
-    tertiary = TgBlueLight,
-    onTertiary = TgBlack,
-    tertiaryContainer = Color(0xFF1B3F63),
-    onTertiaryContainer = PureWhite,
-    background = TgBlack,
-    onBackground = PureWhite,
-    surface = TgCard,
-    onSurface = PureWhite,
-    surfaceVariant = TgPill,
-    onSurfaceVariant = TgSecondary,
-    surfaceTint = TgBlue,
-    surfaceContainerLowest = TgBlack,
-    surfaceContainerLow = TgCard,
-    surfaceContainer = TgElevated,
-    surfaceContainerHigh = TgPill,
-    surfaceContainerHighest = TgPillHigh,
-    outline = Color(0xFF3A3A3A),
-    outlineVariant = TgHairline,
-    inverseSurface = Color(0xFFF0F0F0),
-    inverseOnSurface = TgBlack,
-    error = TgRedDark,
-    onError = PureWhite,
-    errorContainer = Color(0xFF5C1B1B),
-    onErrorContainer = Color(0xFFFBE4E2),
+    primary = BrandAccent,
+    onPrimary = BrandControl,
+    primaryContainer = BrandAccent,
+    onPrimaryContainer = BrandControl,
+    inversePrimary = BrandInk,
+    secondary = BrandAccent,
+    onSecondary = BrandControl,
+    secondaryContainer = BrandInkSoftDark,
+    onSecondaryContainer = BrandAccent,
+    tertiary = Color(0xFFE0F7F7),
+    onTertiary = Color(0xFF054D4D),
+    tertiaryContainer = Color(0xFF054D4D),
+    onTertiaryContainer = Color(0xFFE0F7F7),
+    background = ScreenDark,
+    onBackground = ContentPrimaryDark,
+    surface = ScreenDark,
+    onSurface = ContentPrimaryDark,
+    surfaceVariant = NeutralDark,
+    onSurfaceVariant = ContentSecondaryDark,
+    surfaceTint = Color.Transparent,
+    surfaceBright = NeutralStrongDark,
+    surfaceDim = ScreenDark,
+    surfaceContainerLowest = Color(0xFF0C0F11),
+    surfaceContainerLow = NeutralDark,
+    surfaceContainer = ElevatedDark,
+    surfaceContainerHigh = NeutralStrongDark,
+    surfaceContainerHighest = NeutralStrongestDark,
+    outline = Color(0xFF4A5055),
+    outlineVariant = BorderDark,
+    inverseSurface = ContentPrimaryDark,
+    inverseOnSurface = ScreenDark,
+    error = Color(0xFFFFA8AD),
+    onError = Color(0xFF410B0D),
+    errorContainer = Color(0xFF410B0D),
+    onErrorContainer = Color(0xFFFFA8AD),
     scrim = Color(0xFF000000),
 )

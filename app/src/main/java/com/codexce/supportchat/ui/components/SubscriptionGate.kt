@@ -21,7 +21,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.codexce.supportchat.ui.theme.TgRedDark
 import com.codexce.supportchat.ui.theme.supportButtonColors
 
 /**
@@ -34,56 +33,20 @@ import com.codexce.supportchat.ui.theme.supportButtonColors
  * TODO: replicate this on the Email and Social tabs, and on the Emails screen reached from
  * Settings. Only the Chatbox tab is wired up in this pass, by request.
  *
- * The lock glyph is drawn in TgRedDark (#EC4E4E) rather than a muted grey, so the reason the
- * screen is empty is legible at a glance instead of looking like an ordinary empty state.
+ * Written as an offer rather than a refusal: the benefit and the one next step. The lock is
+ * monochrome - a plan is not an error, so it does not get the negative sentiment's red.
  */
 @Composable
 fun SubscriptionGate(
     onSubscribe: () -> Unit,
     modifier: Modifier = Modifier,
-    message: String = "You need an active subscription to use this.",
+    message: String = "Upgrade your plan to start using this.",
 ) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 32.dp, vertical = 48.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Box(
-            Modifier
-                .size(64.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.surfaceContainerHigh),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                painter = painterResource(AppIcons.Lock),
-                contentDescription = null,
-                modifier = Modifier.size(26.dp),
-                /*
-                 * The one red thing on the screen, by request. The heading, the body copy and
-                 * the Subscribe button all stay on the normal palette: colouring the button red
-                 * as well would read as a warning about pressing it, when it is the action we
-                 * actually want taken.
-                 */
-                tint = TgRedDark,
-            )
-        }
-        Spacer(Modifier.height(16.dp))
-        Text(
-            text = "Subscription required",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-            textAlign = TextAlign.Center,
-        )
-        Spacer(Modifier.height(8.dp))
-        Text(
-            text = message,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-        )
-        Spacer(Modifier.height(20.dp))
-        Button(onClick = debounced(onSubscribe), colors = supportButtonColors()) { Text("Subscribe") }
-    }
+    EmptyState(
+        icon = AppIcons.Lock,
+        title = "Unlock this with a plan",
+        message = message,
+        modifier = modifier,
+        action = { PrimaryButton(text = "See plans", onClick = onSubscribe) },
+    )
 }

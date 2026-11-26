@@ -2,6 +2,10 @@
 
 package com.codexce.supportchat.ui.screens
 
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.foundation.shape.RoundedCornerShape
+import com.codexce.supportchat.ui.theme.SupportTheme
+import com.codexce.supportchat.ui.components.PrimaryButton
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -245,17 +249,24 @@ fun ChatScreen(
                         title = if (conversation?.isPending == true) {
                             "Support requested"
                         } else {
-                            "No messages"
+                            "No messages yet"
                         },
                         message = if (conversation?.isPending == true) {
-                            "This visitor is waiting. Start the chat to connect them."
+                            "Start the chat and they'll see you've joined."
                         } else {
-                            "Nothing has been sent in this conversation yet."
+                            "Messages you and your visitor send will show here."
                         },
                     )
 
                     else -> {
                         val listState = rememberLazyListState()
+                        // Bubbles take ~78% of the window, capped so lines stay readable on a
+                        // tablet or in landscape. Computed once per configuration here rather
+                        // than measured per bubble.
+                        val screenWidth = LocalConfiguration.current.screenWidthDp.dp
+                        val bubbleMaxWidth = remember(screenWidth) {
+                            (screenWidth * 0.78f).coerceIn(240.dp, 520.dp)
+                        }
                         val reversed = remember(messages) { messages.asReversed() }
 
                         /*
@@ -322,7 +333,7 @@ fun ChatScreen(
                                 key = { it.id },
                                 contentType = { it.sender },
                             ) { message ->
-                                MessageBubble(message)
+                                MessageBubble(message, maxWidth = bubbleMaxWidth)
                             }
                             if (state.loadingOlder) {
                                 item(key = "older-spinner") {
@@ -448,27 +459,12 @@ private fun StartChatBar(
                 .padding(horizontal = 16.dp, vertical = 12.dp),
         ) {
             Text(
-                text = "This visitor asked for support and is waiting to be connected.",
-                style = MaterialTheme.typography.bodySmall,
+                text = "This visitor is waiting for you.",
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Spacer(Modifier.height(10.dp))
-            Button(
-                colors = supportButtonColors(),
-                onClick = debounced(onStart),
-                enabled = !working,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                if (working) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(16.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.onPrimary,
-                    )
-                    Spacer(Modifier.width(10.dp))
-                }
-                Text("Start chat")
-            }
+            Spacer(Modifier.height(12.dp))
+            PrimaryButton(text = "Start chat", onClick = onStart, loading = working)
         }
     }
 }
@@ -508,18 +504,19 @@ private fun Composer(
                 modifier = Modifier.weight(1f),
                 placeholder = {
                     Text(
-                        text = if (enabled) "Message" else "Conversation is closed",
-                        style = MaterialTheme.typography.bodyMedium,
+                        text = if (enabled) "Write a reply" else "This chat is closed",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = SupportTheme.colors.contentTertiary,
                     )
                 },
                 enabled = enabled,
                 maxLines = 4,
-                textStyle = MaterialTheme.typography.bodyMedium,
-                shape = CircleShape,
+                textStyle = MaterialTheme.typography.bodyLarge,
+                shape = RoundedCornerShape(24.dp),
                 colors = TextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surface,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                    disabledContainerColor = MaterialTheme.colorScheme.surface,
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                     // TextField draws an underline by default. On a pill that reads as a
                     // rendering artefact, so all three states are cleared.
                     focusedIndicatorColor = Color.Transparent,
@@ -535,8 +532,10 @@ private fun Composer(
                 shape = CircleShape,
                 modifier = Modifier.size(48.dp),
                 colors = IconButtonDefaults.filledIconButtonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    containerColor = SupportTheme.colors.accent,
+                    contentColor = SupportTheme.colors.onAccent,
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                    disabledContentColor = SupportTheme.colors.contentTertiary,
                 ),
             ) {
                 Icon(
