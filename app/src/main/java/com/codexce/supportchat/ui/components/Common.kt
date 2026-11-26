@@ -425,7 +425,7 @@ fun IconAvatar(
     Box(
         modifier
             .size(Spacing.iconButton)
-            .clip(SettingsTileShape)
+            .clip(CircleShape)
             .background(background),
         contentAlignment = Alignment.Center,
     ) {
@@ -438,6 +438,14 @@ fun IconAvatar(
     }
 }
 
+/**
+ * A settings row: a solid white glyph on a coloured rounded tile, then the title.
+ *
+ * The per-row tile colours are back by request - they are what makes Settings scannable at a
+ * glance, and each category keeps the same colour everywhere it appears. A row that passes no
+ * [tint] gets the brand tile instead: the yellow with a charcoal glyph, since white on yellow
+ * would be 1.5:1.
+ */
 @Composable
 fun SettingsRow(
     @DrawableRes icon: Int,
@@ -448,29 +456,38 @@ fun SettingsRow(
      * app; ignoring the parameter here removes every caption in one edit.
      */
     @Suppress("UNUSED_PARAMETER") subtitle: String? = null,
-    /*
-     * Accepted and deliberately not drawn. Colour is semantic, never decorative: a settings
-     * category is not a sentiment, so every row gets the same neutral circle and monochrome
-     * glyph. The rainbow of per-row tiles was the single loudest thing on the Settings screens.
-     */
-    @Suppress("UNUSED_PARAMETER") tint: Color? = null,
+    tint: Color? = null,
     onClick: (() -> Unit)? = null,
     trailing: @Composable (RowScope.() -> Unit)? = null,
 ) {
-    // Inside a neutral group the avatar steps up one shade so it still reads as a circle.
+    val tile = tint ?: SupportTheme.colors.accent
+    val glyph = if (tint == null) SupportTheme.colors.onAccent else Color.White
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .heightIn(min = 64.dp)
+            .heightIn(min = 60.dp)
             .then(if (onClick != null) Modifier.safeClickable(onClick = onClick) else Modifier)
             .padding(horizontal = Spacing.gutter, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        IconAvatar(icon = icon, background = MaterialTheme.colorScheme.surfaceContainerHigh)
-        Spacer(Modifier.width(Spacing.gutter))
+        Box(
+            Modifier
+                .size(32.dp)
+                .clip(SettingsTileShape)
+                .background(tile),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                painter = painterResource(icon),
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+                tint = glyph,
+            )
+        }
+        Spacer(Modifier.width(14.dp))
         Text(
             text = title,
-            style = SupportType.largeBodyBold,
+            style = SupportType.largeBody,
             color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.weight(1f),
         )
@@ -481,7 +498,7 @@ fun SettingsRow(
                 painter = painterResource(AppIcons.ChevronRight),
                 contentDescription = null,
                 modifier = Modifier.size(20.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = SupportTheme.colors.contentTertiary,
             )
         }
     }

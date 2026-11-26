@@ -49,7 +49,9 @@ jobs:
       # Compiles Kotlin and links resources without the slower packaging steps,
       # so a syntax error surfaces in about a minute.
       - name: Compile
-        run: ./gradlew assembleDebug --stacktrace
+        # testDebugUnitTest runs the plain JVM suite (colour contrast, formatting, avatar palette):
+        # seconds, no emulator.
+        run: ./gradlew assembleDebug testDebugUnitTest --stacktrace
 
       - name: Upload APK
         if: success()

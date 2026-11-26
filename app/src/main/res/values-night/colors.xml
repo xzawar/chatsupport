@@ -8,5 +8,5 @@
         pure black on the first composed frame. Keeping the two in sync is the whole point of the
         value; if DarkColors.background ever changes, change this with it.
     -->
-    <color name="window_background">#111416</color>
+    <color name="window_background">#121211</color>
 </resources>

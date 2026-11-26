@@ -33,8 +33,11 @@ val SupportShapes = Shapes(
 /** Cards, list groups, inputs, banners: the most common container shape. */
 val GroupedCardShape = RoundedCornerShape(16.dp)
 
-/** Leading icon containers are circles on the neutral tint, not coloured squircles. */
-val SettingsTileShape = CircleShape
+/**
+ * The coloured glyph tile in a settings row: a rounded square at roughly a third of its side,
+ * the closest a RoundedCornerShape gets to a squircle at 32dp.
+ */
+val SettingsTileShape = RoundedCornerShape(10.dp)
 
 /** Every button, chip, badge and icon button. */
 val PillShape = CircleShape

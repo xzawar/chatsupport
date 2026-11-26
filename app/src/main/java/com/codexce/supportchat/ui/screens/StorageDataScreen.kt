@@ -2,6 +2,7 @@
 
 package com.codexce.supportchat.ui.screens
 
+import androidx.compose.runtime.mutableIntStateOf
 import com.codexce.supportchat.ui.components.responsiveContent
 import android.content.Context
 import androidx.compose.foundation.layout.Column
@@ -71,7 +72,7 @@ fun StorageDataScreen(
      * is exactly the kind of thing that shows up as a dropped frame when a screen opens.
      */
     var cacheBytes by remember { mutableStateOf<Long?>(null) }
-    var recount by remember { mutableStateOf(0) }
+    var recount by remember { mutableIntStateOf(0) }
     var confirmClear by remember { mutableStateOf(false) }
 
     LaunchedEffect(recount) {

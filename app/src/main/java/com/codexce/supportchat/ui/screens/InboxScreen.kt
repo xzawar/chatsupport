@@ -2,6 +2,7 @@
 
 package com.codexce.supportchat.ui.screens
 
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.derivedStateOf
 import com.codexce.supportchat.data.AppPreferences
 import androidx.compose.ui.platform.LocalContext
@@ -346,7 +347,7 @@ private fun SwipeableConversationRow(
     val scope = rememberCoroutineScope()
     val haptics = LocalHapticFeedback.current
 
-    var rowWidth by remember { mutableStateOf(0f) }
+    var rowWidth by remember { mutableFloatStateOf(0f) }
     val offsetX = remember { Animatable(0f) }
     /*
      * Lid angle in degrees, and it is the whole animation now.

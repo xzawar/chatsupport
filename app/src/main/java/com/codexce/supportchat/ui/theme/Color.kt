@@ -14,20 +14,23 @@ import androidx.compose.ui.graphics.Color
  * and five sentiments. Colour is a ROLE, never a decoration: screens pick a token from
  * MaterialTheme.colorScheme or SupportTheme.colors, never a hex.
  *
- * The brand is NOT Wise's. Their green pair is a proprietary asset; the four brand slots below
- * use this app's launcher sky blue instead. Swapping the brand means editing these four values
- * and nothing else:
+ * The brand comes from the app icon: a sunny yellow tile (#FDD32B) with charcoal line art
+ * (#333232) and white. Everything else is derived from those three. Swapping the brand means
+ * editing the four values below and nothing else:
  *
- *   BrandAccent     the single bright fill: primary buttons, the "on" switch, progress
- *   BrandControl    text and glyphs printed ON the accent (never white - see contrast below)
+ *   BrandAccent     the single bright fill: primary buttons, the "on" switch, badges, send
+ *   BrandControl    text and glyphs printed ON the accent (charcoal, never white)
  *   BrandInk        interactive text in light mode: links, selected tabs, text buttons
  *   BrandInkSoft    the accent tint: secondary-button fill, outgoing chat bubble
  *
- * Contrast (WCAG, computed):
- *   BrandControl on BrandAccent      9.5:1     ContentPrimary on white      19.0:1
- *   BrandInk on white               12.0:1     ContentSecondary on white     9.0:1
- *   BrandInk on BrandInkSoft        10.6:1     ContentTertiary on white      5.1:1
- *   Accent on dark screen           11.2:1     Dark primary text on screen  16.9:1
+ * Contrast (WCAG, computed; UnitTest ThemeContrastTest enforces the text pairs):
+ *   BrandControl on BrandAccent      9.9:1     ContentPrimary on white      18.1:1
+ *   BrandInk on white               12.8:1     ContentSecondary on white     8.7:1
+ *   BrandInk on BrandInkSoft        11.6:1     ContentTertiary on white      5.2:1
+ *   Accent on dark screen           13.0:1     Dark primary text on screen  17.0:1
+ *
+ * The one hard rule the yellow imposes: it is 1.45:1 against white, so it is only ever a FILL
+ * carrying charcoal content. Never yellow text, never a thin yellow line on a light surface.
  *
  * Surfaces are separated by tint, not by shadow or rule. The neutral fills are stored as
  * opaque, pre-composited values rather than translucent ones: they paint in one pass with no
@@ -39,43 +42,43 @@ import androidx.compose.ui.graphics.Color
 // Brand slots
 // ---------------------------------------------------------------------------
 
-val BrandAccent = Color(0xFF7FD4FF)
-val BrandControl = Color(0xFF05263B)
-val BrandInk = Color(0xFF0B3A57)
-val BrandInkSoft = Color(0xFFE3F4FF)
+val BrandAccent = Color(0xFFFDD32B)
+val BrandControl = Color(0xFF2B2A28)
+val BrandInk = Color(0xFF333232)
+val BrandInkSoft = Color(0xFFFFF4CC)
 
-/** The accent-tint in the dark appearance: a deep brand surface, carrying accent-coloured text. */
-private val BrandInkSoftDark = Color(0xFF123247)
+/** The accent-tint in the dark appearance: a deep olive-gold surface carrying yellow text. */
+private val BrandInkSoftDark = Color(0xFF3A3216)
 
 // ---------------------------------------------------------------------------
-// Neutrals. Faintly cool so they sit with the blue brand rather than against it.
+// Neutrals. Faintly warm so they sit with the yellow rather than against it.
 // ---------------------------------------------------------------------------
 
-private val ContentPrimaryLight = Color(0xFF0E1113)
-private val ContentSecondaryLight = Color(0xFF454A4E)
-private val ContentTertiaryLight = Color(0xFF6A6F74)
+internal val ContentPrimaryLight = Color(0xFF161614)
+internal val ContentSecondaryLight = Color(0xFF4D4B46)
+internal val ContentTertiaryLight = Color(0xFF6F6C66)
 
-private val ScreenLight = Color(0xFFFFFFFF)
-private val NeutralLight = Color(0xFFEEF2F5)        // grouped cards, inputs, avatars
-private val NeutralStrongLight = Color(0xFFE5EAEE)  // pressed rows, search pill on a neutral card
-private val NeutralStrongestLight = Color(0xFFDBE1E6)
-private val BorderLight = Color(0xFFE1E5E8)         // ink at 12% on white
+internal val ScreenLight = Color(0xFFFFFFFF)
+internal val NeutralLight = Color(0xFFF5F4F0)        // grouped cards, inputs, avatars
+private val NeutralStrongLight = Color(0xFFECEAE4)  // pressed rows, search pill on a neutral card
+private val NeutralStrongestLight = Color(0xFFE2DFD8)
+private val BorderLight = Color(0xFFE6E4DE)         // ink at 12% on white
 
-private val ContentPrimaryDark = Color(0xFFF2F5F7)
-private val ContentSecondaryDark = Color(0xFFC8CED3)
-private val ContentTertiaryDark = Color(0xFF9AA2A8)
+internal val ContentPrimaryDark = Color(0xFFF5F4F0)
+internal val ContentSecondaryDark = Color(0xFFCFCCC4)
+internal val ContentTertiaryDark = Color(0xFFA19E97)
 
-/** Never pure black: a blue-black, so the brand still reads in the dark appearance. */
-private val ScreenDark = Color(0xFF111416)
-private val ElevatedDark = Color(0xFF1D2124)        // dialogs, menus, sheets
-private val NeutralDark = Color(0xFF262A2D)         // white at ~10% on the screen
-private val NeutralStrongDark = Color(0xFF2F3438)
-private val NeutralStrongestDark = Color(0xFF3A3F43)
-private val BorderDark = Color(0xFF33383C)
+/** Never pure black: a warm black, so the yellow reads as sunlight rather than neon. */
+internal val ScreenDark = Color(0xFF121211)
+private val ElevatedDark = Color(0xFF1D1D1B)        // dialogs, menus, sheets
+internal val NeutralDark = Color(0xFF282825)         // white at ~10% on the screen
+private val NeutralStrongDark = Color(0xFF31312D)
+private val NeutralStrongestDark = Color(0xFF3B3B37)
+private val BorderDark = Color(0xFF34342F)
 
 /** Window background colours, mirrored in res/values(-night)/colors.xml and MainActivity. */
 const val WindowBackgroundLight = 0xFFFFFFFF
-const val WindowBackgroundDark = 0xFF111416
+const val WindowBackgroundDark = 0xFF121211
 
 // ---------------------------------------------------------------------------
 // Sentiments. Pale surface + dark content, so the text always clears 4.5:1 on its own box.
@@ -124,7 +127,7 @@ val LightSupportColors = SupportColors(
     accentSoft = BrandInkSoft,
     onAccentSoft = BrandInk,
     contentTertiary = ContentTertiaryLight,
-    overlay = Color(0x140B3A57),
+    overlay = Color(0x14333232),
     negative = Sentiment(Color(0xFFCB272F), Color(0xFFFBEAEA), Color(0xFFCB272F), Color.White),
     positive = Sentiment(Color(0xFF054D28), Color(0xFFE2F6D5), Color(0xFF054D28), Color(0xFFE2F6D5)),
     warning = Sentiment(Color(0xFF4A3B1C), Color(0xFFFFF7D7), Color(0xFFFFD11A), Color(0xFF4A3B1C)),

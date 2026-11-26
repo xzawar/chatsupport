@@ -1,5 +1,7 @@
 package com.codexce.supportchat
 
+import com.codexce.supportchat.ui.theme.WindowBackgroundDark
+import com.codexce.supportchat.ui.theme.WindowBackgroundLight
 import android.app.Activity
 import android.app.UiModeManager
 import android.graphics.drawable.ColorDrawable
@@ -73,7 +75,9 @@ class MainActivity : ComponentActivity() {
         }
 
         window.setBackgroundDrawable(
-            ColorDrawable(if (dark) 0xFF111416.toInt() else 0xFFFFFFFF.toInt()),
+            ColorDrawable(
+                if (dark) WindowBackgroundDark.toInt() else WindowBackgroundLight.toInt(),
+            ),
         )
     }
 

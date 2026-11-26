@@ -2,6 +2,7 @@
 
 package com.codexce.supportchat.ui.screens
 
+import androidx.compose.runtime.mutableIntStateOf
 import com.codexce.supportchat.ui.components.responsiveContent
 import com.codexce.supportchat.ui.theme.Spacing
 import com.codexce.supportchat.ui.theme.PillShape
@@ -141,7 +142,7 @@ fun SettingsScreen(
      * straight back, see the row update -- and costs one call per visit instead of one per
      * frame. The counter is what invalidates the remember; its value is never read for itself.
      */
-    var resumeCount by remember { mutableStateOf(0) }
+    var resumeCount by remember { mutableIntStateOf(0) }
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -154,7 +155,7 @@ fun SettingsScreen(
     val keepConnected by preferences.keepConnected.collectAsStateWithLifecycle()
     val updateOnStartup by preferences.updateOnStartup.collectAsStateWithLifecycle()
     val devMode by preferences.devMode.collectAsStateWithLifecycle()
-    var versionTaps by remember { mutableStateOf(0) }
+    var versionTaps by remember { mutableIntStateOf(0) }
 
     val scroll = rememberScrollState()
     val collapsePx = with(LocalDensity.current) { HeaderCollapseDistance.toPx() }

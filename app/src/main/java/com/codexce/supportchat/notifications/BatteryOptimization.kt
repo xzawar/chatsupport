@@ -22,7 +22,6 @@ object BatteryOptimization {
 
     /** Whether Android itself has stopped throttling this app. */
     fun isExempt(context: Context): Boolean {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return true
         val power = context.getSystemService(PowerManager::class.java) ?: return true
         return power.isIgnoringBatteryOptimizations(context.packageName)
     }
@@ -33,7 +32,6 @@ object BatteryOptimization {
      */
     @SuppressLint("BatteryLife")
     fun requestExemption(context: Context) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return
         val direct = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
             .setData(Uri.parse("package:" + context.packageName))
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)

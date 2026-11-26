@@ -242,5 +242,5 @@ private const val STARTUP_CHECK_DELAY_MS = 2_000L
 /** Binary units, because that is what a file manager will report for the same APK. */
 private fun formatSize(bytes: Long): String {
     val mb = bytes.toDouble() / (1024 * 1024)
-    return if (mb >= 1.0) String.format("%.1f MB", mb) else "${bytes / 1024} KB"
+    return if (mb >= 1.0) String.format(java.util.Locale.US, "%.1f MB", mb) else "${bytes / 1024} KB"
 }

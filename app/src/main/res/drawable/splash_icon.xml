@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The launch splash: the whole app-icon tile on the plain window background.
+
+    The splash API draws this at 288dp and clips it to a centred circle of 2/3 that size. A rounded
+    tile only survives that circle whole if it is at most ~54% of the canvas (corner reach of a
+    23%-radius tile is 0.61 of its width), so the tile is 152dp inside a transparent 288dp frame.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:width="288dp" android:height="288dp">
+        <shape android:shape="rectangle">
+            <solid android:color="@android:color/transparent" />
+        </shape>
+    </item>
+    <item
+        android:width="152dp"
+        android:height="152dp"
+        android:gravity="center"
+        android:drawable="@drawable/brand_mark" />
+</layer-list>

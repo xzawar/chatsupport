@@ -12,4 +12,10 @@
         raster mipmaps directly.
     -->
     <color name="window_background">#FFFFFF</color>
+
+    <!-- Brand yellow, sampled from the icon tile. The adaptive icon's background layer. -->
+    <color name="ic_launcher_background">#FDD32B</color>
+    <!-- Notification accent (small icon tint, app name in the shade). The icon's charcoal ink:
+         yellow text on the white shade would be 1.5:1. -->
+    <color name="notification_accent">#333232</color>
 </resources>

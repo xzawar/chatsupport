@@ -74,7 +74,7 @@ import com.codexce.supportchat.viewmodel.AuthViewModel
 /*
  * Login gate, as an info screen in the calm-fintech DNA:
  *
- *   illustration on a soft brand panel (32dp radius, inset from the edges)
+ *   the app icon on a neutral panel (32dp radius, inset from the edges)
  *   ONE display line in the heavy caps face - the only one in the app's whole first run
  *   one supporting sentence in the second person
  *   the footer actions, stacked, primary-style last
@@ -162,15 +162,15 @@ fun LoginScreen(authViewModel: AuthViewModel) {
                     .height(heroHeight)
                     .graphicsLayer { alpha = heroAlpha }
                     .clip(RoundedCornerShape(32.dp))
-                    .background(SupportTheme.colors.accentSoft),
+                    .background(MaterialTheme.colorScheme.surfaceContainerLow),
                 contentAlignment = Alignment.Center,
             ) {
+                // The app icon itself: the yellow tile is the brand, and a neutral panel lets it
+                // be the one bright thing on the screen until there is something to submit.
                 Image(
-                    painter = painterResource(R.drawable.login_hero),
+                    painter = painterResource(R.drawable.brand_mark),
                     contentDescription = null,
-                    modifier = Modifier
-                        .size(heroHeight * 0.56f)
-                        .clip(RoundedCornerShape(percent = 50)),
+                    modifier = Modifier.size(heroHeight * 0.56f),
                 )
             }
 

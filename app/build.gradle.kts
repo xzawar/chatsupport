@@ -245,4 +245,11 @@ dependencies {
     implementation("com.google.firebase:firebase-messaging")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
+
+    /*
+     * Plain JVM unit tests (app/src/test): the colour-contrast guard, time formatting and the
+     * avatar palette. No emulator or Robolectric needed, so `./gradlew testDebugUnitTest` runs in
+     * seconds locally and in CI.
+     */
+    testImplementation("junit:junit:4.13.2")
 }

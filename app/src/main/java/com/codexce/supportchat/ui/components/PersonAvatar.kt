@@ -1,5 +1,6 @@
 package com.codexce.supportchat.ui.components
 
+import com.codexce.supportchat.ui.theme.ScreenDark
 import androidx.compose.ui.graphics.lerp
 import com.codexce.supportchat.ui.theme.SupportTheme
 import com.codexce.supportchat.ui.theme.InterFamily
@@ -90,7 +91,7 @@ object AvatarPalette {
         return if (light) {
             lerp(disc, Color.White, 0.84f) to disc
         } else {
-            lerp(disc, Color(0xFF111416), 0.62f) to lerp(disc, Color.White, 0.72f)
+            lerp(disc, ScreenDark, 0.62f) to lerp(disc, Color.White, 0.72f)
         }
     }
 
