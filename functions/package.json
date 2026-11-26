@@ -17,7 +17,7 @@
     "test": "npm run test:offline",
     "test:offline": "node test/offline/run.js",
     "test:rules": "node --test test/rules.emulator.test.js",
-    "test:emulator": "cd .. && firebase emulators:exec --only firestore,database \"cd functions && npm run test:rules\""
+    "test:emulator": "cd .. && npx --yes firebase-tools@13.35.1 emulators:exec --only firestore,database --project demo-support-chat \"cd functions && npm run test:rules\""
   },
   "dependencies": {
     "cors": "^2.8.5",
